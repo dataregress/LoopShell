@@ -1,0 +1,61 @@
+---
+description: React UI conventions for the Loop Dock panel - folder layout, adapter boundary, state, validation, accessibility, Storybook.
+globs: src/**/*.tsx, src/**/*.ts
+alwaysApply: false
+---
+
+# React UI conventions
+
+Interaction and visual spec: `docs/ui-ux.md`. This rule is the coding checklist.
+
+## Layout
+
+```
+src/
+  app/            # App root, providers (QueryClient, Theme, Adapter), router-less mode switch
+  modes/          # ask/, attention/, recent/ - one folder per mode, each with index.tsx, components/, hooks/
+  cards/          # CardRenderer.tsx + one file per type: Summary, Record, Table, Choice, Confirmation, Link
+  shell/          # PanelChrome, ModeSwitcher, Composer, QuickActions, ConnectivityDot, SettingsSheet
+  anchor/         # Pill.tsx (rendered in the `anchor` window), Badge, drag handling
+  ui/             # tokens.css, motion.ts, primitives (Button, IconButton, Input, Menu, Tooltip, Badge, Toast, Skeleton, Dialog)
+  adapters/       # adapter.ts (interface), tauri.ts, mock.ts
+  stores/         # dock.ts, session.ts, attention.ts, ledger.ts (Zustand)
+  lib/            # formatting, dates, ids
+```
+
+## Adapter boundary (non-negotiable)
+
+- Components and hooks import only from `@/adapters/adapter` (the interface) via `useAdapter()`. Never import `@tauri-apps/*` outside `src/adapters/tauri.ts`.
+- The same UI must run in Vite/Storybook with `mock.ts` and inside the dock with `tauri.ts`. If a feature cannot be mocked, it is not ready.
+- Adapter methods mirror IPC commands 1:1 and return the generated `contracts/bindings` types; no ad-hoc DTOs.
+
+## State
+
+- Zustand stores hold UI state only: current mode, pinned, panel open, composer draft, selected Attention item, filters.
+- Server data (Attention list, Ledger, Ask thread) goes through TanStack Query with query keys `['attention', userId]`, `['ledger', userId, filters]`, `['journey', journeyId]`. Realtime events call `queryClient.setQueryData` / `invalidateQueries`; never mutate stores with server payloads.
+- Streaming Ask state is a reducer (`modes/ask/thread.reducer.ts`) driven by `task_state` events; test it with Vitest.
+
+## Validation
+
+- Every inbound payload (IPC event, query result) is parsed with the Zod schema from `contracts/` before it touches state. `safeParse`; on failure log `warn` with `cardId`/`eventId` and drop. Never render unvalidated data.
+- `CardRenderer` switches on `card.type`; the `default` branch logs and renders nothing. No "generic JSON card".
+
+## Components
+
+- Function components, named exports, props typed with `interface`. No default exports except Storybook stories.
+- Radix primitives for anything with keyboard or focus semantics (menu, dialog, tooltip, tabs). Do not hand-roll them.
+- Icons: `lucide-react` only, 16 px in dense rows, 20 px in cards.
+- Text through `t()` even for English now; Arabic/RTL is deferred, not excluded. Use logical CSS properties (`ms-`, `me-`, `ps-`).
+
+## Accessibility (required, not optional)
+
+- Every interactive element reachable by Tab; Esc closes the panel from anywhere; arrow keys move within lists and card option groups.
+- On panel open in Ask, focus does **not** move into the composer until the user clicks or presses the hotkey a second time (non-activating rule). On Attention/Recent open via keyboard, focus lands on the first item.
+- Cards: `role="article"` with `aria-labelledby` the card title; `confirmation` options are a `role="group"` with `aria-describedby` the evidence block.
+- Contrast AA or better in both themes; verify with Storybook a11y addon.
+- Respect `prefers-reduced-motion`; never animate opacity below 0.9 on text.
+
+## Storybook and tests
+
+- One story per component per state (loading, empty, error, expired, populated) in both themes. Fixtures live in `contracts/fixtures/`.
+- Vitest for reducers, adapters, schema guards. Playwright for: ask -> cards, choice disambiguation, confirm -> Recent, Attention expiry, ledger filter.

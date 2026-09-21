@@ -1,0 +1,64 @@
+---
+description: Styling and motion rules for Loop Dock - ADIC tokens via Tailwind v4 @theme, OS-following light/dark, Motion presets, reduced motion.
+globs: src/**/*.tsx, src/**/*.css
+alwaysApply: false
+---
+
+# Styling and motion
+
+Visual system in `docs/ui-ux.md` section 4 and 5. This rule enforces it.
+
+## Tokens (Tailwind v4, CSS-first)
+
+- All colour, radius, elevation, spacing and type values are CSS variables declared once in `src/ui/tokens.css` inside `@theme` and `:root` / `[data-theme]` blocks. Components use Tailwind utilities that reference them (`bg-surface`, `text-fg-muted`, `rounded-card`). No hex, rgb or px colour/radius literals in components.
+- Brand: Regent Green `#003B48`, Turquoise `#00B2A9`, Yellow `#FFC72C` (accent, badge, spark). Semantic tokens map to them; components never use brand names directly.
+- Theme follows the OS: `@media (prefers-color-scheme: dark)` sets the dark set; `[data-theme="light"|"dark"]` on `<html>` overrides when the user picks one in Settings. Both themes are first-class; every story renders in both.
+- Panel surface is opaque by default (`--surface`). Vibrancy/Mica is an enhancement toggled by the shell; the UI must look correct without it.
+
+```css
+/* ✅ tokens.css */
+@theme {
+  --color-surface: var(--surface);
+  --color-fg: var(--fg);
+  --color-accent: var(--accent);
+  --radius-pill: 9999px;
+  --radius-card: 12px;
+}
+:root { --surface: #FAFAF7; --fg: #0F1F23; --accent: #FFC72C; }
+@media (prefers-color-scheme: dark) { :root { --surface: #0B1A1E; --fg: #E8EEEF; } }
+[data-theme="dark"] { --surface: #0B1A1E; --fg: #E8EEEF; }
+```
+
+```tsx
+// ❌ BAD
+<div className="bg-[#0B1A1E] rounded-[12px]" />
+// ✅ GOOD
+<div className="bg-surface rounded-card" />
+```
+
+## Type and density
+
+- Type scale tokens: `text-xs` 11/16, `text-sm` 12.5/18, `text-base` 14/20, `text-lg` 16/22, `text-xl` 20/26. Body is 14 px; Recent rows use 12.5 px.
+- Font: system UI stack (`Segoe UI Variable` on Windows, `SF Pro` on macOS) via `font-sans`; no webfont downloads.
+- Recent rows are dense bordered rows (36 px), not cards. Cards have 12 px radius, 16 px padding.
+
+## Motion (Motion for React)
+
+- Import variants and transitions only from `src/ui/motion.ts`: `spring` (stiffness 400, damping 30), `expand` (180 ms ease-out — tab → pill chrome width), `collapse` (150 ms ease-in — pill → tab), `fadeFast` (120 ms opacity — tab ↔ toolbar swap), `stagger` (35 ms), `fadeUp`, `slideInRight`, `scaleIn`, `durations.fast` (120 ms), `durations.base` (200 ms).
+- Panel open: `slideInRight` on the panel root, `stagger` on children. Mode switch: cross-fade + 8 px `fadeUp`, no horizontal slide. Badge count change: `scaleIn`.
+- Never animate `width`/`height` of a native window; both are fixed-size. Animate content inside them. The anchor's tab ↔ pill slide is the `Pill` outline's `width` inside the fixed anchor window; Rust only toggles the window region (ADR-005).
+- `useReducedMotion()` gates every animation: replace transforms with opacity-only, durations with `durations.fast`, staggers with 0.
+- No `layout` animations on lists longer than 20 rows (Recent is virtualised).
+
+```tsx
+// ❌ BAD
+<motion.div animate={{ x: 0 }} transition={{ duration: 0.35 }} />
+// ✅ GOOD
+<motion.div variants={slideInRight} initial="hidden" animate="visible" transition={spring} />
+```
+
+## Do not
+
+- Add a second styling system (CSS modules, styled-components, inline style objects for theme values).
+- Use Tailwind v3 config syntax (`tailwind.config.js`, `theme.extend`); v4 uses `@theme` in CSS.
+- Use `dark:` variants for anything already covered by a semantic token.

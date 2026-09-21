@@ -1,0 +1,43 @@
+---
+description: Rules for the local mock orchestrator used to build and test the Loop Dock UI without a backend.
+globs: tools/mock-orchestrator/**
+alwaysApply: false
+---
+
+# Mock orchestrator
+
+A Node/TypeScript service that replays scripted journeys so the UI can be built and demoed in the browser and inside the dock without the real orchestrator. It is a development tool; it never ships.
+
+## Surface (mirrors the real orchestrator API shape)
+
+- `POST /ask` `{ text, journeyId? }` -> `{ journeyId, taskId }`
+- `POST /attention/:id/decide` `{ decision, freeText?, idempotencyKey }` -> `{ ok }`
+- `GET /attention` -> Attention items for the mock user
+- `GET /ledger?platform=&status=&cursor=` -> Ledger rows (10k-row fixture available)
+- `GET /negotiate` -> `{ url }` for the WebSocket
+- `WS /ws` speaking the same event envelope as Web PubSub (`json.reliable.webpubsub.azure.v1` frames): `task_state`, `attention_new`, `attention_expired`, `ledger_appended`
+
+All payloads are validated against `contracts/schemas` on the way out; the mock must never emit something the UI would reject.
+
+## Scenarios
+
+`tools/mock-orchestrator/scenarios/*.json`: an ordered list of `{ afterMs, event, payload }` steps triggered by a matching ask (regex on text) or by name via `POST /scenario/:name/run`.
+
+Required scenarios (keep in sync with `docs/design-brief.md` section 6):
+
+1. `raise-incident` - "Raise a P2 for the payments dashboard outage": working -> handoff chip (ServiceNow) -> `confirmation` card -> on confirm: `executed`, `record` card, `ledger_appended`.
+2. `track-incident` - read-only: working -> `record` card, no Attention.
+3. `disambiguate` - "Order 20 laptops": `choice` card (ServiceNow vs Oracle Fusion) -> continue with chosen agent.
+4. `expense-approval` - inbound Attention item (Oracle Fusion) with evidence and two options plus free text.
+5. `access-request` - inbound Attention (Snowflake) requiring manager approval.
+6. Failure paths: `rejected`, `failed`, `cancelled`, `expired` variants of scenario 1.
+
+## Knobs (env or query)
+
+`LATENCY_MS`, `JITTER_MS`, `FAIL_RATE`, `DROP_WS_EVERY_MS` (forces reconnect), `EXPIRE_AFTER_MS`. Defaults are realistic (400 ms, 150 ms, 0, 0, 120 s).
+
+## Rules
+
+- No secrets, no real tenant ids, no real names beyond the fictional cast in `fixtures/people.ts`.
+- Local by default (`localhost:8787`). A shared demo deployment is a separate decision with the Cloud & AI Team; do not add hosting config here.
+- Runs with `pnpm mock`; Storybook and Playwright start it automatically.

@@ -1,0 +1,94 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Loop Dock",
+  "version": "../package.json",
+  "identifier": "com.adic.loop.dock",
+  "build": {
+    "beforeDevCommand": "pnpm dev:ui",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "macOSPrivateApi": true,
+    "withGlobalTauri": false,
+    "windows": [
+      {
+        "label": "anchor",
+        "title": "Loop",
+        "url": "anchor.html",
+        "width": 56,
+        "height": 180,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "closable": false,
+        "focusable": false,
+        "visible": false,
+        "visibleOnAllWorkspaces": true,
+        "acceptFirstMouse": true,
+        "windowEffects": null
+      },
+      {
+        "label": "panel",
+        "title": "Loop",
+        "url": "index.html",
+        "width": 380,
+        "height": 640,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "closable": false,
+        "focusable": false,
+        "visible": false,
+        "visibleOnAllWorkspaces": true,
+        "acceptFirstMouse": true,
+        "windowEffects": null
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'none'; frame-src 'none'; object-src 'none'",
+      "devCsp": "default-src 'self' http://localhost:1420; img-src 'self' data: http://localhost:1420; style-src 'self' 'unsafe-inline' http://localhost:1420; font-src 'self' http://localhost:1420; connect-src ws://localhost:1420 ws://localhost:1421 http://localhost:1420; frame-src 'none'; object-src 'none'",
+      "capabilities": ["anchor", "panel"]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["msi"],
+    "category": "Productivity",
+    "copyright": "Copyright © 2026 ADIC",
+    "shortDescription": "Ask once. It's handled.",
+    "longDescription": "Loop Dock is the always-visible pill and panel for Loop: Ask, Attention and Recent.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "webviewInstallMode": { "type": "downloadBootstrapper", "silent": true },
+      "wix": { "language": "en-US" }
+    },
+    "macOS": {
+      "minimumSystemVersion": "13.0"
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["loop"]
+      }
+    }
+  }
+}

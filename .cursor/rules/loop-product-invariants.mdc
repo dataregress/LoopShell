@@ -1,0 +1,47 @@
+---
+description: Loop Dock product invariants. The functional scope is exactly Ask, Attention and Recent; nothing else may be added without an ADR.
+alwaysApply: true
+---
+
+# Loop Dock product invariants
+
+Loop Dock is the single user-facing surface of Loop: a small always-visible **edge tab** on the right screen edge that expands to a **pill** on hover, and a **panel** with three modes. Tagline: *Ask once. It's handled.*
+
+## The three modes, and only three
+
+- **Ask** - plain-language ask to the orchestrator; results as typed cards; action asks return a `confirmation` card.
+- **Attention** - every journey in `waiting_on_user` for this user (approvals, confirmations, clarifying questions, auth/consent).
+- **Recent** - the user's Ledger: what was asked, which agent did what, on which platform, outcome, when.
+
+All three are views over one object, the **journey** (`journeyId`), backed by an append-only Ledger. Do not add a fourth mode, a home feed, a settings mode (settings is a sheet inside the panel), or a chat history browser.
+
+## Invariants (never break these)
+
+1. **The pill shows one number.** Only Attention items light the badge, including on the collapsed edge tab. Completed asks and executed actions never do.
+2. **Handoff is visible.** Every Ask thread shows which sub-agent is acting ("Handed to ServiceNow agent").
+3. **Agents pick card types; they never generate layout.** Card set is fixed: `summary`, `record`, `table`, `choice`, `confirmation`, `link`. Unknown types are dropped and logged.
+4. **Nothing irreversible executes without an explicit user decision** on a `confirmation` card. The orchestrator never guesses between overlapping agents; it returns a `choice` card.
+5. **Never steal focus.** The panel is non-activating until the user clicks the composer. On hide, keyboard focus returns to the application that had it.
+6. **A closed panel does not lose a proposal.** An unanswered proposal moves to Attention.
+7. **Recent is immutable.** It is the audit trail; the UI never edits or deletes Ledger rows.
+8. **Existing platforms remain systems of record.** Loop layers over them; every record card offers a `link` back.
+
+## Explicit non-goals (do not implement, do not scaffold)
+
+These are features seen in comparable products (notably Superhuman Go). Loop borrows *interaction and visual patterns* from them, never *functions*:
+
+- Inline underlines or suggestions inside other applications' text fields.
+- Reading the active window's content, title, selection or process name ("You're in Outlook", per-app pause, block lists).
+- A web or mobile shell of the dock; Teams or MyADIC shells.
+- Agent marketplace, agent builder, connectors UI, daily briefs, email/calendar features.
+- Voice input beyond what the OS provides natively in a text field.
+- In-app updater during the pilot (MDM owns updates).
+
+If a request appears to add functionality outside Ask / Attention / Recent, stop and propose an ADR in `docs/adr/` instead of implementing it.
+
+## Where the rules live
+
+- Stack and versions: `loop-stack-locked.mdc`, `docs/technology.md`.
+- Interaction and visuals: `docs/ui-ux.md`.
+- Windows, focus, IPC, security: `docs/shell-architecture.md`.
+- Decisions with rationale: `docs/adr/`.

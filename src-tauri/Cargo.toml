@@ -1,0 +1,90 @@
+[package]
+name = "loop-dock"
+version = "0.1.0"
+description = "Loop Dock: the pill and panel shell for Loop (Ask, Attention, Recent)."
+authors = ["Loop Platform Team"]
+edition = "2021"
+rust-version = "1.85"
+publish = false
+
+# Versions are pinned exactly (docs/technology.md); upgrade in dedicated PRs.
+
+[lib]
+name = "loop_dock_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "loop-dock"
+path = "src/main.rs"
+
+# `cargo run --bin export-bindings` writes contracts/bindings/*.ts (docs/technology.md §6).
+[[bin]]
+name = "export-bindings"
+path = "src/bin/export_bindings.rs"
+
+[build-dependencies]
+tauri-build = { version = "=2.6.3", features = [] }
+
+[dependencies]
+tauri = { version = "=2.11.5", features = ["tray-icon", "image-png", "macos-private-api"] }
+tauri-plugin-global-shortcut = "=2.3.2"
+tauri-plugin-single-instance = { version = "=2.4.4", features = ["deep-link"] }
+tauri-plugin-deep-link = "=2.4.10"
+tauri-plugin-autostart = "=2.5.1"
+tauri-plugin-notification = "=2.4.0"
+tauri-plugin-log = "=2.9.1"
+
+# Typed IPC (docs/technology.md §6). tauri-specta's Tauri 2 line is the 2.0.0-rc series.
+tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
+# `serde_json` so pass-through bodies (cards, ledger rows) export as `JsonValue`.
+specta = { version = "=2.0.0-rc.25", features = ["serde_json"] }
+specta-typescript = "=0.0.12"
+
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.151"
+thiserror = "=2.0.20"
+anyhow = "=1.0.104"
+log = "=0.4.34"
+parking_lot = "=0.12.5"
+uuid = { version = "=1.26.1", features = ["v4", "serde"] }
+url = "=2.5.8"
+time = { version = "=0.3.55", features = ["formatting", "parsing", "macros"] }
+futures-util = "=0.3.34"
+
+tokio = { version = "=1.53.1", features = ["rt-multi-thread", "macros", "sync", "time", "net"] }
+# The only HTTP client (api/). Native roots so corporate TLS inspection works; system proxy for VPN/proxy fleets.
+reqwest = { version = "=0.12.28", default-features = false, features = ["rustls-tls-native-roots", "json", "http2", "system-proxy", "charset"] }
+# The only WebSocket client (realtime/).
+tokio-tungstenite = { version = "=0.30.0", features = ["rustls-tls-native-roots"] }
+# Auth code + PKCE (auth/, ADR-002). Default features bring reqwest 0.12 + rustls, matching the pin above.
+oauth2 = "=5.0.0"
+# OS credential store (auth/keychain.rs).
+keyring = { version = "=3.6.3", features = ["windows-native", "apple-native"] }
+
+[target.'cfg(windows)'.dependencies]
+# Same 0.61 line Tauri 2.11 uses, so HWNDs pass through without conversion.
+windows = { version = "=0.61.3", features = [
+  "Win32_Foundation",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_Shell",
+  "Win32_Graphics_Dwm",
+] }
+window-vibrancy = "=0.8.0"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+window-vibrancy = "=0.8.0"
+
+[features]
+# This feature is used for production builds or when a dev server is not specified; DO NOT REMOVE!
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true
+
+[profile.dev]
+incremental = true

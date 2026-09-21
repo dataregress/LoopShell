@@ -1,0 +1,1143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loop — System Architecture</title>
+<meta name="description" content="Server-side architecture of Loop: components, orchestrator behaviour and the A2A contract between the orchestrator and the platform sub-agents.">
+<meta name="generator" content="Generated from docs/system-architecture.md — edit the Markdown, not this file.">
+<meta name="color-scheme" content="light dark">
+<style>
+:root {
+  --bg: #ffffff; --surface: #f7f8f9; --text: #16181c; --muted: #5c6370;
+  --border: #dfe2e6; --accent: #1f6feb; --code-bg: #f3f4f6; --thead: #eef0f2;
+  --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131519; --surface: #1a1d22; --text: #e6e8ea; --muted: #9aa2ad;
+    --border: #2b2f36; --accent: #6aa8ff; --code-bg: #1e2228; --thead: #20242a;
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 1.5rem; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font-family: "Segoe UI Variable Text", "Segoe UI", -apple-system, "SF Pro Text", system-ui, sans-serif;
+  font-size: 15px; line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+main { max-width: 62rem; margin: 0 auto; padding: 3rem 1.5rem 6rem; }
+h1, h2, h3, h4 { line-height: 1.25; font-weight: 600; letter-spacing: -0.01em; }
+h1 { font-size: 2rem; margin: 0 0 1.5rem; }
+h2 { font-size: 1.375rem; margin: 3rem 0 1rem; padding-top: 0.5rem; }
+h3 { font-size: 1.0625rem; margin: 2rem 0 0.75rem; }
+h4 { font-size: 0.9375rem; margin: 1.5rem 0 0.5rem; color: var(--muted); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+a.anchor { color: inherit; }
+a.anchor:hover { text-decoration: none; }
+a.anchor:hover::after { content: " #"; color: var(--muted); font-weight: 400; }
+p { margin: 0 0 1rem; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+ul, ol { margin: 0 0 1rem; padding-left: 1.5rem; }
+li { margin: 0.25rem 0; }
+li > p { margin: 0 0 0.5rem; }
+code {
+  font-family: var(--mono); font-size: 0.875em;
+  background: var(--code-bg); border: 1px solid var(--border);
+  border-radius: 4px; padding: 0.1em 0.35em;
+}
+pre {
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 1rem; overflow-x: auto; margin: 0 0 1.25rem; font-size: 0.8125rem; line-height: 1.55;
+}
+pre code { background: none; border: 0; padding: 0; font-size: 1em; }
+table {
+  width: 100%; border-collapse: collapse; margin: 0 0 1.5rem;
+  font-size: 0.875rem; display: block; overflow-x: auto;
+}
+th, td { border: 1px solid var(--border); padding: 0.45rem 0.65rem; text-align: left; vertical-align: top; }
+th { background: var(--thead); font-weight: 600; white-space: nowrap; }
+tbody tr:nth-child(even) { background: var(--surface); }
+td code { white-space: nowrap; }
+/* Label columns, such as the header table's Status / Last updated / Owner. */
+td > strong:only-child { white-space: nowrap; }
+blockquote { margin: 0 0 1rem; padding: 0.5rem 1rem; border-left: 3px solid var(--border); color: var(--muted); }
+.toc {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 1rem 1.25rem; margin: 0 0 2.5rem;
+}
+.toc h2 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 0.5rem; padding: 0; }
+.toc ol { margin: 0; padding-left: 1.25rem; font-size: 0.875rem; }
+.toc li { margin: 0.15rem 0; }
+/* Diagrams are wider than the text column: break out to the viewport, scroll if still wider. */
+figure.diagram {
+  position: relative; left: 50%; transform: translateX(-50%);
+  width: min(94vw, 1500px); margin: 0 0 1.5rem; overflow-x: auto;
+}
+/* Before mermaid runs, the source stays readable; after it runs, the SVG is centred. */
+.mermaid {
+  font-family: var(--mono); font-size: 0.75rem; white-space: pre; overflow-x: auto;
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1rem;
+  color: var(--muted);
+}
+.mermaid[data-processed="true"] {
+  font-family: inherit; white-space: normal; text-align: center;
+  background: var(--surface); padding: 1.25rem; color: inherit;
+}
+.mermaid svg { height: auto; }
+footer { margin-top: 4rem; padding-top: 1.25rem; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.8125rem; }
+@media print {
+  body { font-size: 10.5pt; }
+  main { max-width: none; padding: 0; }
+  .toc { break-inside: avoid; }
+  table, figure.diagram, pre { break-inside: avoid; }
+  h2, h3 { break-after: avoid; }
+  a { color: inherit; text-decoration: none; }
+}
+</style>
+</head>
+<body>
+<main>
+<h1>Loop — System Architecture</h1>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Status</strong></td>
+<td>Draft v0.1</td>
+</tr>
+<tr>
+<td><strong>Last updated</strong></td>
+<td>21 September 2026</td>
+</tr>
+<tr>
+<td><strong>Owner</strong></td>
+<td>Loop Platform Team</td>
+</tr>
+<tr>
+<td><strong>Audience</strong></td>
+<td>Loop platform engineers · Orchestrator team · Cloud &amp; AI Team · Security · Sub-agent owners</td>
+</tr>
+<tr>
+<td><strong>Related</strong></td>
+<td><a href="design-brief.md">design-brief.md</a> · <a href="shell-architecture.md">shell-architecture.md</a> · <a href="technology.md">technology.md</a> · <a href="ui-ux.md">ui-ux.md</a> · <a href="adr/ADR-001-shell-stack.md">ADR-001</a> · <a href="adr/ADR-002-auth-flow.md">ADR-002</a></td>
+</tr>
+</tbody></table>
+<p>This document owns the server side of Loop: every component behind the dock, how the orchestrator functions, and the A2A contract between the orchestrator and the platform sub-agents. It exists because <code>tools/mock-orchestrator/</code> is the only executable description of that behaviour today, and a mock is not a specification.</p>
+<p>It does not restate the dock. Windows, focus, IPC and budgets are owned by <a href="shell-architecture.md">shell-architecture.md</a>; versions and rationale by <a href="technology.md">technology.md</a>; product scope and the three modes by <a href="design-brief.md">design-brief.md</a>.</p>
+<nav class="toc" aria-label="Contents"><h2>Contents</h2><ol><li><a href="#1-scope-and-document-map">1. Scope and document map</a></li><li><a href="#2-component-inventory">2. Component inventory</a></li><li><a href="#3-topology">3. Topology</a></li><li><a href="#4-the-orchestrator">4. The orchestrator</a></li><li><a href="#5-what-the-mock-stands-in-for">5. What the mock stands in for</a></li><li><a href="#6-a2a-orchestrator-to-sub-agents">6. A2A: orchestrator to sub-agents</a></li><li><a href="#7-one-ask-several-platforms">7. One ask, several platforms</a></li><li><a href="#8-failure-modes">8. Failure modes</a></li><li><a href="#9-open-questions">9. Open questions</a></li><li><a href="#changes-in-v0-1">Changes in v0.1</a></li></ol></nav>
+<hr>
+<h2 id="1-scope-and-document-map"><a class="anchor" href="#1-scope-and-document-map">1. Scope and document map</a></h2>
+<table>
+<thead>
+<tr>
+<th>Question</th>
+<th>Answered in</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>What are the components and who owns each</td>
+<td>§2, §3 of this document</td>
+</tr>
+<tr>
+<td>How the real orchestrator triages, executes, records and notifies</td>
+<td>§4</td>
+</tr>
+<tr>
+<td>Which real component replaces which part of the mock</td>
+<td>§5</td>
+</tr>
+<tr>
+<td>How the orchestrator talks to sub-agents on the wire</td>
+<td>§6</td>
+</tr>
+<tr>
+<td>How one ask spans several platforms</td>
+<td>§7</td>
+</tr>
+<tr>
+<td>What breaks and what the user sees</td>
+<td>§8</td>
+</tr>
+<tr>
+<td>How the dock is built as a desktop process</td>
+<td><a href="shell-architecture.md">shell-architecture.md</a></td>
+</tr>
+<tr>
+<td>What a card, Attention item or Ledger row looks like</td>
+<td><code>contracts/schemas/</code>, <code>.cursor/rules/contracts.mdc</code></td>
+</tr>
+</tbody></table>
+<p>Only the dock lives in this repository. The orchestrator, sub-agents, MCP Gateway, registry, Ledger and Web PubSub hub are separate Azure-hosted services. This document is the interface specification the two sides agree on.</p>
+<hr>
+<h2 id="2-component-inventory"><a class="anchor" href="#2-component-inventory">2. Component inventory</a></h2>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Owner</th>
+<th>Technology</th>
+<th>What the dock depends on</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Loop Dock</strong></td>
+<td>Loop Platform Team (this repo)</td>
+<td>Tauri 2, Rust, React 19</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>API edge</strong></td>
+<td>Orchestrator team</td>
+<td>Azure-hosted HTTP service</td>
+<td>The eight endpoints in §4.1; nothing else</td>
+</tr>
+<tr>
+<td><strong>Triage service</strong></td>
+<td>Orchestrator team</td>
+<td>Embedding retrieval + LLM choice</td>
+<td>That a <code>choice</code> card arrives instead of a guess</td>
+</tr>
+<tr>
+<td><strong>Workflow runtime</strong></td>
+<td>Orchestrator team</td>
+<td>Microsoft Agent Framework, checkpointed</td>
+<td>That a paused journey survives sleep and restart</td>
+</tr>
+<tr>
+<td><strong>Decision relay</strong></td>
+<td>Orchestrator team</td>
+<td>Part of the API edge</td>
+<td>Idempotent decisions; HTTP 409 on a second decision</td>
+</tr>
+<tr>
+<td><strong>Ledger writer</strong></td>
+<td>Orchestrator team</td>
+<td>Append-only writer</td>
+<td>That rows are never edited or deleted</td>
+</tr>
+<tr>
+<td><strong>Event fan-out</strong></td>
+<td>Orchestrator team</td>
+<td>Web PubSub publisher</td>
+<td>The five wire event names in §4.6</td>
+</tr>
+<tr>
+<td><strong>Agent registry</strong></td>
+<td>Orchestrator team</td>
+<td>Agent Card store + routing corpus</td>
+<td><code>agentId</code> values that match <code>contracts/registry/agents.ts</code></td>
+</tr>
+<tr>
+<td><strong>Sub-agents</strong></td>
+<td>Platform teams (one per platform)</td>
+<td>One deployable each, A2A server</td>
+<td>Handoff is attributed to a named agent</td>
+</tr>
+<tr>
+<td><strong>MCP Gateway</strong></td>
+<td>Cloud &amp; AI Team</td>
+<td>MCP transport, allow-listing, tool logging</td>
+<td>Nothing directly</td>
+</tr>
+<tr>
+<td><strong>MCP servers</strong></td>
+<td>Platform teams</td>
+<td>One or more per platform</td>
+<td>Nothing directly</td>
+</tr>
+<tr>
+<td><strong>Ledger store</strong></td>
+<td>Orchestrator team</td>
+<td>Append-only store, server-side</td>
+<td>Identical Recent on every device</td>
+</tr>
+<tr>
+<td><strong>Attention store</strong></td>
+<td>Orchestrator team</td>
+<td>Queryable by assignee</td>
+<td><code>GET /attention</code> returns every open item for this user</td>
+</tr>
+<tr>
+<td><strong>Web PubSub hub</strong></td>
+<td>Cloud &amp; AI Team</td>
+<td>Azure Web PubSub, reliable subprotocol</td>
+<td>Replay on reconnect, dedupe by <code>eventId</code></td>
+</tr>
+<tr>
+<td><strong>Entra ID</strong></td>
+<td>Identity team</td>
+<td>OAuth 2.0, On-Behalf-Of</td>
+<td>Auth code + PKCE per <a href="adr/ADR-002-auth-flow.md">ADR-002</a></td>
+</tr>
+<tr>
+<td><strong>Telemetry sinks</strong></td>
+<td>Loop Platform Team</td>
+<td>Sentry, Application Insights</td>
+<td>Traces carry <code>journeyId</code> and <code>taskId</code></td>
+</tr>
+</tbody></table>
+<p>Two notes on the registry. <code>contracts/registry/agents.ts</code> is a build-time default so a chip always has a name and platform; the orchestrator serves the authoritative registry, and an unknown <code>agentId</code> degrades to the id itself rather than failing. <code>PLATFORMS</code> in that file drives the Recent filter list, so adding a sub-agent means adding a registry entry even though no dock code changes.</p>
+<hr>
+<h2 id="3-topology"><a class="anchor" href="#3-topology">3. Topology</a></h2>
+<figure class="diagram"><div class="mermaid">flowchart LR
+  Dock["Loop Dock: Rust shell + React UI"]
+
+  subgraph orch [Loop orchestrator]
+    ApiEdge["API edge"]
+    Triage["Triage"]
+    Runtime["Workflow runtime, checkpointed"]
+    Relay["Decision relay"]
+    LedgerW["Ledger writer"]
+    Fanout["Event fan-out"]
+  end
+
+  Registry[("Agent registry: cards and routing corpus")]
+
+  subgraph agents [Sub-agents - one deployable per platform]
+    SN["servicenow-itsm"]
+    OF["oracle-fusion"]
+    M365["m365"]
+    SF["snowflake"]
+    OS["outsystems"]
+  end
+
+  Gateway["MCP Gateway"]
+  Records[("Systems of record")]
+  PubSub[("Azure Web PubSub")]
+  LedgerDB[("Ledger store")]
+  AttDB[("Attention store")]
+  Entra[("Entra ID")]
+
+  Dock -->|"HTTPS, bearer token"| ApiEdge
+  PubSub -->|"reliable subprotocol"| Dock
+  Dock -->|"auth code + PKCE"| Entra
+
+  ApiEdge --> Triage
+  ApiEdge --> Relay
+  Triage --> Registry
+  Triage --> Runtime
+  Relay --> Runtime
+  Runtime -->|"A2A"| agents
+  Runtime --> AttDB
+  Runtime --> LedgerW
+  Relay --> LedgerW
+  LedgerW --> LedgerDB
+  LedgerW --> Fanout
+  Runtime --> Fanout
+  Fanout --> PubSub
+  ApiEdge -->|"On-Behalf-Of"| Entra
+
+  agents --> Gateway
+  Gateway --> Records</div></figure>
+<p>Three properties of this shape matter:</p>
+<ul>
+<li><strong>The dock speaks Loop&#39;s API, never A2A.</strong> A2A lives entirely between the workflow runtime and the sub-agents. The dock interprets task states it is told about through <code>contracts/a2a/state-map.ts</code>; it has no A2A client.</li>
+<li><strong>The orchestrator contains no platform-specific code.</strong> Every platform call goes through a sub-agent, and every sub-agent tool call goes through the MCP Gateway.</li>
+<li><strong>Writes fan out through the Ledger.</strong> A state change is recorded before it is announced, so Recent and the live panel cannot disagree.</li>
+</ul>
+<hr>
+<h2 id="4-the-orchestrator"><a class="anchor" href="#4-the-orchestrator">4. The orchestrator</a></h2>
+<h3 id="4-1-api-edge"><a class="anchor" href="#4-1-api-edge">4.1 API edge</a></h3>
+<p>This is the frozen contract between the dock and the orchestrator. It is not a proposal: <a href="../src-tauri/src/api/mod.rs">src-tauri/src/api/mod.rs</a> already implements exactly these calls, so the real orchestrator must match them for the dock to work unchanged.</p>
+<table>
+<thead>
+<tr>
+<th>Method and path</th>
+<th>Request</th>
+<th>Response</th>
+<th>Schema</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>GET /session</code></td>
+<td>—</td>
+<td><code>Session</code></td>
+<td><code>contracts/schemas/session.ts</code></td>
+</tr>
+<tr>
+<td><code>GET /negotiate</code></td>
+<td>—</td>
+<td><code>{ url, reconnectionToken? }</code></td>
+<td>§4.6</td>
+</tr>
+<tr>
+<td><code>POST /ask</code></td>
+<td><code>AskSubmitRequest</code></td>
+<td><code>{ journeyId, taskId }</code></td>
+<td><code>contracts/schemas/ipc.ts</code></td>
+</tr>
+<tr>
+<td><code>POST /ask/{taskId}/cancel</code></td>
+<td>—</td>
+<td><code>204 No Content</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>GET /attention</code></td>
+<td>—</td>
+<td><code>AttentionItem[]</code></td>
+<td><code>contracts/schemas/attention.ts</code></td>
+</tr>
+<tr>
+<td><code>POST /attention/{attentionId}/decide</code></td>
+<td><code>AttentionDecision</code></td>
+<td><code>{ accepted: boolean }</code></td>
+<td><code>contracts/schemas/attention.ts</code></td>
+</tr>
+<tr>
+<td><code>GET /ledger</code></td>
+<td><code>?platform=&amp;status=&amp;scope=&amp;cursor=&amp;limit=</code></td>
+<td><code>{ rows, nextCursor? }</code></td>
+<td><code>contracts/schemas/ledger.ts</code></td>
+</tr>
+<tr>
+<td><code>GET /journey/{journeyId}</code></td>
+<td>—</td>
+<td><code>JourneyThread</code></td>
+<td><code>contracts/schemas/journey.ts</code></td>
+</tr>
+</tbody></table>
+<p>Request and response conventions, all already enforced by the Rust client:</p>
+<ul>
+<li><strong>Headers out:</strong> <code>Authorization: Bearer &lt;token&gt;</code>, <code>x-journey-id</code> when known, and a W3C <code>traceparent</code>. The token comes from the OS keychain and never enters the webview.</li>
+<li><strong>Headers back:</strong> <code>x-correlation-id</code> on every response, success or failure. The dock surfaces it in error states, so it must be present.</li>
+<li><strong>Timeouts:</strong> 10 s request, 5 s connect. The dock retries a GET once on connect or timeout failure, and retries nothing else, so <code>POST /ask</code> and <code>POST /attention/.../decide</code> must be safe against a client that gives up and never asks again.</li>
+<li><strong>Error body:</strong> <code>{ code, message, retryable }</code> where <code>code</code> is an <code>IpcErrorCode</code>. If the body is absent the dock infers a code from the status, so the status must be right even when the body is not: <code>401</code> unauthenticated, <code>403</code> rejected, <code>409</code> conflict, <code>400</code>/<code>404</code>/<code>422</code> invalid, <code>408</code>/<code>504</code> timeout, <code>5xx</code> internal and retryable.</li>
+<li><strong><code>POST /ask</code> returns before the work is done.</strong> It acknowledges with <code>{ journeyId, taskId }</code> and every subsequent state change arrives over Web PubSub. <code>AskSubmitRequest.clientRequestId</code> is the dedupe key for a resubmitted ask.</li>
+<li><strong><code>GET /session</code> is the development and mock path.</strong> With <code>LOOP_AUTH_MODE=entra</code> the dock owns the session and this endpoint is informational.</li>
+</ul>
+<h3 id="4-2-triage"><a class="anchor" href="#4-2-triage">4.2 Triage</a></h3>
+<p>Triage turns one line of plain language into one sub-agent, or into a question for the user.</p>
+<ol>
+<li>Embed the ask and retrieve over the routing corpus, which is built from each Agent Card&#39;s <code>skills[].description</code>, <code>skills[].tags</code> and <code>skills[].examples</code> (§6.1). Retrieval keeps the prompt a constant size as agents are onboarded, which is why it is retrieval and not a growing list in a system prompt.</li>
+<li>Give an LLM only the top-k candidate skills and ask it to choose, with &quot;none of these&quot; as an allowed answer.</li>
+<li>Act on the outcome:</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Outcome</th>
+<th>What the orchestrator does</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>One clear candidate</td>
+<td>Hand off to that sub-agent (§6.6) and emit <code>journey.updated</code> with its <code>agentId</code>, which is what renders the handoff chip</td>
+</tr>
+<tr>
+<td>Two or more plausible candidates</td>
+<td>Emit an orchestrator-authored <code>choice</code> card and an Attention item, and wait. Never guess between overlapping agents</td>
+</tr>
+<tr>
+<td>No candidate</td>
+<td>Emit a <code>summary</code> card with <code>tone: &#39;neutral&#39;</code> explaining that no agent covers this yet, and record the ask for the Loop team</td>
+</tr>
+<tr>
+<td>Ask spans several platforms</td>
+<td>Build a sequential workflow (§7) rather than a single handoff</td>
+</tr>
+</tbody></table>
+<p>The <code>choice</code> card is the one card type the orchestrator authors itself; <code>agentId</code> on it is <code>loop-orchestrator</code>. Its options carry <code>agentId</code> (see <code>DecisionOption</code> in <code>contracts/schemas/common.ts</code>) so the user&#39;s pick names the sub-agent directly and no second triage pass is needed.</p>
+<h3 id="4-3-workflow-runtime"><a class="anchor" href="#4-3-workflow-runtime">4.3 Workflow runtime</a></h3>
+<p>The runtime is Microsoft Agent Framework. Two patterns, chosen by triage:</p>
+<ul>
+<li><strong>Handoff</strong> for a single-platform ask. Interactive by default: when the acting agent responds without handing off further, control returns to the user.</li>
+<li><strong>Sequential workflow</strong> for a multi-platform ask, one step per platform (§7).</li>
+</ul>
+<p>The property Loop actually depends on is <strong>checkpointing</strong>. Every pause for a human decision is a checkpoint written to durable storage before the Attention item is announced. This is what makes product invariant 6 true — a closed panel does not lose a proposal — and it is also what lets the laptop sleep, the user sign in on a different machine, or the orchestrator be redeployed mid-journey. On restore, pending requests are re-emitted, matched to their open Attention items by <code>attentionId</code>, and the workflow continues.</p>
+<p>Journey status is derived, never stored twice. The runtime reports an A2A task state; <code>A2A_TO_JOURNEY</code> in <a href="../contracts/a2a/state-map.ts">contracts/a2a/state-map.ts</a> is the single mapping to the <code>JourneyStatus</code> the dock renders.</p>
+<h3 id="4-4-decision-relay"><a class="anchor" href="#4-4-decision-relay">4.4 Decision relay</a></h3>
+<p><code>POST /attention/{attentionId}/decide</code> carries an <code>AttentionDecision</code>: <code>{ attentionId, decision, freeText?, decidedAt, idempotencyKey }</code>. <code>decision</code> is an <code>optionId</code> or the literal <code>&#39;reject&#39;</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Response</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Item open, first time this <code>idempotencyKey</code> is seen</td>
+<td><code>200 { accepted: true }</code></td>
+<td>Normal path</td>
+</tr>
+<tr>
+<td>Same <code>idempotencyKey</code> again</td>
+<td><code>200 { accepted: true }</code></td>
+<td>The UI reuses the key on retry; a dropped response must not become a second decision</td>
+</tr>
+<tr>
+<td>Item already decided under a different key</td>
+<td><code>409 conflict</code></td>
+<td>Renders as &quot;Already decided elsewhere&quot; — the cross-device case</td>
+</tr>
+<tr>
+<td>Item expired</td>
+<td><code>409 conflict</code></td>
+<td>Expired items are read-only</td>
+</tr>
+<tr>
+<td>Unknown <code>attentionId</code></td>
+<td><code>404</code>, code <code>invalid</code></td>
+<td>—</td>
+</tr>
+</tbody></table>
+<p>On acceptance the relay writes the Ledger row before resuming the workflow, appends the decision to the journey&#39;s <code>decisions[]</code>, stamps <code>chosenOptionId</code> or <code>decidedOptionId</code> on the originating card so a reopened thread shows what was decided, and publishes <code>attention.resolved</code>.</p>
+<p><code>freeText</code> is a first-class input, not a comment. &quot;Approve, but ask for the itemised receipt&quot; is relayed to the sub-agent alongside the chosen option, and the sub-agent is expected to act on it. It is also the most sensitive field in the system: never logged above <code>debug</code>, scrubbed before Sentry.</p>
+<h3 id="4-5-ledger-writer"><a class="anchor" href="#4-5-ledger-writer">4.5 Ledger writer</a></h3>
+<p>The Ledger is the audit trail, so it is append-only: no component updates or deletes a row. <code>LedgerRow</code> is defined in <code>contracts/schemas/ledger.ts</code>.</p>
+<table>
+<thead>
+<tr>
+<th><code>eventType</code></th>
+<th>Emitted by</th>
+<th>When</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>proposed</code></td>
+<td>Sub-agent, via the runtime</td>
+<td>A proposal is put to the user</td>
+</tr>
+<tr>
+<td><code>confirmed</code></td>
+<td><strong>Orchestrator only</strong></td>
+<td>The user&#39;s decision is accepted. No sub-agent may write this row</td>
+</tr>
+<tr>
+<td><code>executed</code></td>
+<td>Sub-agent, via the runtime</td>
+<td>The platform write succeeded</td>
+</tr>
+<tr>
+<td><code>failed</code></td>
+<td>Sub-agent or orchestrator</td>
+<td>The work could not complete</td>
+</tr>
+<tr>
+<td><code>cancelled</code></td>
+<td>Orchestrator</td>
+<td>The user rejected, or cancelled the ask</td>
+</tr>
+<tr>
+<td><code>expired</code></td>
+<td>Orchestrator</td>
+<td>An Attention item passed <code>expiresAt</code> undecided</td>
+</tr>
+</tbody></table>
+<p><code>confirmed</code> is reserved to the orchestrator because it is the row that proves a human decided. A sub-agent that could write it could manufacture consent.</p>
+<p><code>routedToUser</code> marks rows that reached the user because someone else&#39;s journey routed a decision to them, which is what the Recent <code>scope</code> filter (<code>all</code> / <code>mine</code> / <code>routed</code>) reads. Where a platform requires a service identity — Oracle Fusion today — the approving user is stamped in <code>actor</code>, so the trail never shows a service account.</p>
+<h3 id="4-6-event-fan-out"><a class="anchor" href="#4-6-event-fan-out">4.6 Event fan-out</a></h3>
+<p><code>GET /negotiate</code> returns a client access URL for Azure Web PubSub. The dock connects with the <code>json.reliable.webpubsub.azure.v1</code> subprotocol and joins the group <code>user:&lt;userId&gt;</code>. Five wire events are published, and <code>contracts/schemas/events.ts</code> holds the authoritative name map:</p>
+<table>
+<thead>
+<tr>
+<th>Wire event</th>
+<th>Payload</th>
+<th>IPC event the dock re-emits</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>attention.created</code></td>
+<td><code>{ eventId, item }</code></td>
+<td><code>attention_new</code></td>
+</tr>
+<tr>
+<td><code>attention.resolved</code></td>
+<td><code>{ eventId, attentionId }</code></td>
+<td><code>attention_resolved</code></td>
+</tr>
+<tr>
+<td><code>attention.expired</code></td>
+<td><code>{ eventId, attentionId }</code></td>
+<td><code>attention_expired</code></td>
+</tr>
+<tr>
+<td><code>journey.updated</code></td>
+<td><code>{ eventId, journeyId, taskId, state, agentId?, cards?, message? }</code></td>
+<td><code>task_state</code></td>
+</tr>
+<tr>
+<td><code>ledger.appended</code></td>
+<td><code>{ eventId, row }</code></td>
+<td><code>ledger_appended</code></td>
+</tr>
+</tbody></table>
+<p>Requirements on the publisher:</p>
+<ul>
+<li><strong><code>eventId</code> is a UUID and is stable across replay.</strong> The dock dedupes on it with a 1,000-entry ring buffer, so a replayed message after reconnect must carry the same id, not a fresh one.</li>
+<li><strong>Delivery is at-least-once and order is not assumed.</strong> Every payload is self-contained; the dock never reconstructs state by replaying a sequence.</li>
+<li><strong><code>journey.updated</code> carries whole cards, not patches.</strong> The dock upserts by <code>cardId</code>. A corrected proposal is the same <code>cardId</code> sent again.</li>
+<li><strong>Only Attention lights the badge.</strong> <code>journey.updated</code> and <code>ledger.appended</code> must never be used to signal something that should be an Attention item, or product invariant 1 breaks.</li>
+<li><strong>Unknown card types are dropped, not fatal.</strong> <code>cards</code> is typed <code>unknown[]</code> on the wire and each card is parsed individually, so one unrecognised type never rejects the event.</li>
+</ul>
+<h3 id="4-7-identity-and-on-behalf-of"><a class="anchor" href="#4-7-identity-and-on-behalf-of">4.7 Identity and On-Behalf-Of</a></h3>
+<p>The dock signs the user in with Entra ID using auth code + PKCE in Rust and holds tokens in the OS credential store (<a href="adr/ADR-002-auth-flow.md">ADR-002</a>). The API edge validates that token and exchanges it On-Behalf-Of for the downstream scopes each sub-agent needs, so a sub-agent acts as the user wherever the platform accepts Entra tokens. Each sub-agent has its own Entra identity and its own consented scopes; a compromised sub-agent cannot borrow another&#39;s reach.</p>
+<h3 id="4-8-remote-configuration"><a class="anchor" href="#4-8-remote-configuration">4.8 Remote configuration</a></h3>
+<p>Fetched by the dock at start and every five minutes: <code>dockPaused</code>, <code>disabledAgents[]</code>, <code>forceSignOut</code>, <code>minVersion</code>. This is the kill switch, and it is why the pilot needs no in-app updater (<a href="adr/ADR-004-packaging-and-updates.md">ADR-004</a>). <code>disabledAgents[]</code> is also enforced in triage, so a withdrawn agent stops receiving work even from a dock that has not refreshed.</p>
+<hr>
+<h2 id="5-what-the-mock-stands-in-for"><a class="anchor" href="#5-what-the-mock-stands-in-for">5. What the mock stands in for</a></h2>
+<p><a href="../tools/mock-orchestrator">tools/mock-orchestrator/</a> remains a development tool and never ships. It is deliberately a look-alike: it validates everything it emits against <code>contracts/schemas/</code>, so the UI cannot be built against a shape the real orchestrator would not produce. This table is the correspondence.</p>
+<table>
+<thead>
+<tr>
+<th>Mock behaviour</th>
+<th>Where</th>
+<th>Real component</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Regex over the ask text picks a scripted branch (<code>pickScenario</code>)</td>
+<td><code>src/scenarios.ts</code></td>
+<td>§4.2 triage: embedding retrieval over Agent Card skills, then an LLM choice</td>
+</tr>
+<tr>
+<td>Scripted <code>delay()</code> steps, hard-coded card contents</td>
+<td><code>src/scenarios.ts</code></td>
+<td>§4.3 runtime: a real sub-agent calls a real platform through the MCP Gateway and authors its own cards</td>
+</tr>
+<tr>
+<td><code>awaitDecision()</code> promise held in memory</td>
+<td><code>src/state.ts</code></td>
+<td>§4.3 checkpointed pause, restored after sleep or restart. The mock loses every pending journey on restart; the real runtime does not</td>
+</tr>
+<tr>
+<td><code>Map</code> of journeys, <code>Map</code> of Attention items</td>
+<td><code>src/state.ts</code></td>
+<td>§4.3 runtime state plus the Attention store</td>
+</tr>
+<tr>
+<td>Array of 10,000 generated rows, cursor is an array index</td>
+<td><code>src/state.ts</code></td>
+<td>§4.5 Ledger writer and the append-only Ledger store, with an opaque cursor</td>
+</tr>
+<tr>
+<td><code>seenIdempotency</code> map</td>
+<td><code>src/state.ts</code></td>
+<td>§4.4 decision relay, durable</td>
+</tr>
+<tr>
+<td><code>Realtime</code> class speaking reliable-subprotocol frames, replaying the last 50</td>
+<td><code>src/realtime.ts</code></td>
+<td>§4.6 Azure Web PubSub with real acks, <code>reconnectionToken</code> and service-side replay</td>
+</tr>
+<tr>
+<td><code>session()</code> returns a fixed signed-in user</td>
+<td><code>src/state.ts</code></td>
+<td>§4.7 Entra ID, token validation and On-Behalf-Of</td>
+</tr>
+<tr>
+<td>Knobs: <code>latencyMs</code>, <code>failNextAsk</code>, <code>conflictNextDecision</code>, <code>dropRealtime</code></td>
+<td><code>src/server.ts</code></td>
+<td>Nothing. These exist to force the failure states in §8 on demand and have no production counterpart</td>
+</tr>
+<tr>
+<td>Journeys synthesised from Ledger rows when a thread is not in memory</td>
+<td><code>src/state.ts</code></td>
+<td>§4.1 <code>GET /journey/{journeyId}</code> reads a durable thread</td>
+</tr>
+</tbody></table>
+<p>The one thing the mock gets right that is easy to lose: in <code>Ctx.ask()</code> it creates the Attention item <strong>and</strong> puts the card in the thread for the same decision, with <code>pop: false</code> because the thread is already open. The real orchestrator must do the same. One decision, one <code>attentionId</code>, two views of it — that is what makes a proposal survive a closed panel without double-notifying a user who is looking straight at it.</p>
+<p>The scenarios map onto the demo storyline in <a href="design-brief.md">design-brief.md</a> §6: <code>raiseIncident</code>, <code>trackIncident</code>, <code>orderLaptops</code>, <code>bookRoom</code>, <code>listExpenses</code>, <code>cantHelp</code> and <code>failure</code>. When a sub-agent goes live, its scenario stays as the UI regression fixture.</p>
+<hr>
+<h2 id="6-a2a-orchestrator-to-sub-agents"><a class="anchor" href="#6-a2a-orchestrator-to-sub-agents">6. A2A: orchestrator to sub-agents</a></h2>
+<p>A2A is the contract between the workflow runtime and every sub-agent. It is the reason a platform team can ship an agent without a change to the orchestrator or the dock.</p>
+<h3 id="6-1-discovery-the-agent-card"><a class="anchor" href="#6-1-discovery-the-agent-card">6.1 Discovery: the Agent Card</a></h3>
+<p>Every sub-agent serves a card at <code>GET /.well-known/agent-card.json</code>. The fields Loop uses:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Loop&#39;s use</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>name</code>, <code>description</code>, <code>version</code>, <code>provider</code>, <code>iconUrl</code></td>
+<td>Registry display; <code>displayName</code> in <code>contracts/registry/agents.ts</code></td>
+</tr>
+<tr>
+<td><code>supportedInterfaces[]</code></td>
+<td>Endpoint and binding. Ordered, first entry preferred; each has <code>url</code>, <code>protocolBinding</code>, <code>protocolVersion</code></td>
+</tr>
+<tr>
+<td><code>capabilities</code></td>
+<td><code>streaming</code>, <code>pushNotifications</code>, <code>extendedAgentCard</code> decide how the runtime subscribes (§6.7)</td>
+</tr>
+<tr>
+<td><code>securitySchemes</code>, <code>securityRequirements</code></td>
+<td>Which Entra scopes the runtime must present</td>
+</tr>
+<tr>
+<td><code>defaultInputModes</code>, <code>defaultOutputModes</code></td>
+<td>Negotiating the card payload media type (§6.5)</td>
+</tr>
+<tr>
+<td><code>skills[]</code></td>
+<td><strong>The routing corpus.</strong> <code>id</code>, <code>name</code>, <code>description</code>, <code>tags[]</code>, <code>examples[]</code>, and per-skill <code>inputModes</code>/<code>outputModes</code></td>
+</tr>
+<tr>
+<td><code>signatures[]</code></td>
+<td>JSON Web Signatures over the card; the registry verifies before trusting a card</td>
+</tr>
+</tbody></table>
+<p>Onboarding a sub-agent is therefore: publish a card, register it, let the registry embed its skills. <code>examples[]</code> earns its keep here — it is phrased the way users actually ask, so it retrieves better than a formal description.</p>
+<p>A skill declaration is also where an agent states which card types it may emit. Anything undeclared is dropped and logged (product invariant 3).</p>
+<h3 id="6-2-transport-and-method-mapping"><a class="anchor" href="#6-2-transport-and-method-mapping">6.2 Transport and method mapping</a></h3>
+<p>JSON-RPC 2.0 over HTTPS is Loop&#39;s default binding, with content type <code>application/a2a+json</code>. The spec defines three bindings and the runtime honours whichever a card prefers:</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>JSON-RPC method</th>
+<th>REST endpoint</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Send message</td>
+<td><code>SendMessage</code></td>
+<td><code>POST /message:send</code></td>
+</tr>
+<tr>
+<td>Send streaming message</td>
+<td><code>SendStreamingMessage</code></td>
+<td><code>POST /message:stream</code></td>
+</tr>
+<tr>
+<td>Get task</td>
+<td><code>GetTask</code></td>
+<td><code>GET /tasks/{id}</code></td>
+</tr>
+<tr>
+<td>List tasks</td>
+<td><code>ListTasks</code></td>
+<td><code>GET /tasks</code></td>
+</tr>
+<tr>
+<td>Cancel task</td>
+<td><code>CancelTask</code></td>
+<td><code>POST /tasks/{id}:cancel</code></td>
+</tr>
+<tr>
+<td>Subscribe to task</td>
+<td><code>SubscribeToTask</code></td>
+<td><code>POST /tasks/{id}:subscribe</code></td>
+</tr>
+<tr>
+<td>Create push notification config</td>
+<td><code>CreateTaskPushNotificationConfig</code></td>
+<td><code>POST /tasks/{id}/pushNotificationConfigs</code></td>
+</tr>
+<tr>
+<td>Get extended Agent Card</td>
+<td><code>GetExtendedAgentCard</code></td>
+<td><code>GET /extendedAgentCard</code></td>
+</tr>
+</tbody></table>
+<p>gRPC method names match the JSON-RPC names.</p>
+<h3 id="6-3-identifiers"><a class="anchor" href="#6-3-identifiers">6.3 Identifiers</a></h3>
+<table>
+<thead>
+<tr>
+<th>A2A</th>
+<th>Loop</th>
+<th>Note</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>contextId</code></td>
+<td><code>journeyId</code></td>
+<td>One journey is one conversation context, across every agent it touches</td>
+</tr>
+<tr>
+<td>Task <code>id</code></td>
+<td><code>taskId</code></td>
+<td>One unit of work by one agent. A journey has several</td>
+</tr>
+<tr>
+<td><code>messageId</code></td>
+<td>—</td>
+<td>Per-message, created by the sender</td>
+</tr>
+<tr>
+<td><code>referenceTaskIds[]</code></td>
+<td>—</td>
+<td>Used when a later task needs an earlier task&#39;s result (§7)</td>
+</tr>
+<tr>
+<td><code>artifactId</code></td>
+<td>—</td>
+<td>Carries a card (§6.5)</td>
+</tr>
+</tbody></table>
+<p>Continuation rules the runtime follows: send <code>taskId</code> and <code>contextId</code> together to continue a specific task; send <code>contextId</code> alone to start a new task in the same journey. An agent must reject a message whose <code>contextId</code> does not match the referenced task.</p>
+<h3 id="6-4-task-state-and-a-naming-discrepancy-worth-knowing-about"><a class="anchor" href="#6-4-task-state-and-a-naming-discrepancy-worth-knowing-about">6.4 Task state, and a naming discrepancy worth knowing about</a></h3>
+<p>The A2A specification currently publishes its lifecycle as a protobuf-style enum (<code>TASK_STATE_WORKING</code>), while its own prose and the earlier JSON-RPC line use kebab-case (<code>input-required</code>). <code>contracts/schemas/events.ts</code> uses the kebab-case spelling. The eight values correspond one-to-one, so <strong>the orchestrator normalises at its A2A boundary and the dock contract does not change.</strong> Whether to rename the enum in <code>contracts/</code> is §9.</p>
+<table>
+<thead>
+<tr>
+<th>A2A <code>TaskState</code></th>
+<th><code>A2AState</code> (<code>contracts</code>)</th>
+<th>Kind</th>
+<th><code>UiTaskState</code></th>
+<th><code>JourneyStatus</code></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>TASK_STATE_SUBMITTED</code></td>
+<td><code>submitted</code></td>
+<td>in flight</td>
+<td><code>progress</code></td>
+<td><code>received</code></td>
+</tr>
+<tr>
+<td><code>TASK_STATE_WORKING</code></td>
+<td><code>working</code></td>
+<td>in flight</td>
+<td><code>progress</code></td>
+<td><code>running</code></td>
+</tr>
+<tr>
+<td><code>TASK_STATE_INPUT_REQUIRED</code></td>
+<td><code>input-required</code></td>
+<td>interrupted</td>
+<td><code>attention</code></td>
+<td><code>waiting_on_user</code></td>
+</tr>
+<tr>
+<td><code>TASK_STATE_AUTH_REQUIRED</code></td>
+<td><code>auth-required</code></td>
+<td>interrupted</td>
+<td><code>attention</code></td>
+<td><code>waiting_on_user</code></td>
+</tr>
+<tr>
+<td><code>TASK_STATE_COMPLETED</code></td>
+<td><code>completed</code></td>
+<td>terminal</td>
+<td><code>cards</code></td>
+<td><code>completed</code></td>
+</tr>
+<tr>
+<td><code>TASK_STATE_FAILED</code></td>
+<td><code>failed</code></td>
+<td>terminal</td>
+<td><code>failure</code></td>
+<td><code>failed</code></td>
+</tr>
+<tr>
+<td><code>TASK_STATE_REJECTED</code></td>
+<td><code>rejected</code></td>
+<td>terminal</td>
+<td><code>failure</code></td>
+<td><code>failed</code></td>
+</tr>
+<tr>
+<td><code>TASK_STATE_CANCELED</code></td>
+<td><code>canceled</code></td>
+<td>terminal</td>
+<td><code>failure</code></td>
+<td><code>cancelled</code></td>
+</tr>
+</tbody></table>
+<p><code>TASK_STATE_UNSPECIFIED</code> has no Loop meaning; the runtime treats it as a protocol error and fails the task. Note the single-l <code>canceled</code> on the wire against <code>cancelled</code> in <code>JourneyStatus</code> — the A2A spelling is American, Loop&#39;s product vocabulary is British, and <code>A2A_TO_JOURNEY</code> is where they meet.</p>
+<p>The two interrupted states are the whole human-in-the-loop mechanism: <code>input-required</code> becomes an Attention item whose <code>kind</code> is taken from the message (<code>confirm</code>, <code>choose</code> or <code>provide</code>), and <code>auth-required</code> becomes an Attention item of kind <code>auth</code> with a single option that opens the browser.</p>
+<h3 id="6-5-cards-inside-artifacts"><a class="anchor" href="#6-5-cards-inside-artifacts">6.5 Cards inside artifacts</a></h3>
+<p>A2A artifacts are the transport for Loop cards. An agent returns one artifact per card, and the runtime maps artifacts to the <code>cards[]</code> of a <code>journey.updated</code> event.</p>
+<p>The proposed rule, <strong>to be confirmed with the orchestrator team before the first sub-agent ships</strong> (§9): a card travels as a single artifact part with media type <code>application/vnd.loop.card+json</code>, whose body is a full card envelope. An agent declares that media type in its Agent Card <code>outputModes</code>, and the runtime sends it in <code>acceptedOutputModes</code>. The runtime validates each card against <code>contracts/schemas/cards.ts</code> before publishing, drops what does not validate, and logs the drop with <code>agentId</code> and <code>cardId</code>. Agents choose a card type from the closed set of six; they never send layout.</p>
+<pre><code class="language-json">{
+  &quot;artifactId&quot;: &quot;a7f3...&quot;,
+  &quot;name&quot;: &quot;incident&quot;,
+  &quot;parts&quot;: [
+    {
+      &quot;mediaType&quot;: &quot;application/vnd.loop.card+json&quot;,
+      &quot;text&quot;: &quot;{\&quot;cardId\&quot;:\&quot;...\&quot;,\&quot;agentId\&quot;:\&quot;servicenow-itsm\&quot;,\&quot;journeyId\&quot;:\&quot;...\&quot;,\&quot;type\&quot;:\&quot;record\&quot;,\&quot;title\&quot;:\&quot;Payments dashboard outage\&quot;,\&quot;reference\&quot;:\&quot;INC0012345\&quot;}&quot;
+    }
+  ]
+}
+</code></pre>
+<h3 id="6-6-the-three-canonical-interactions"><a class="anchor" href="#6-6-the-three-canonical-interactions">6.6 The three canonical interactions</a></h3>
+<p><strong>Query ask — &quot;Status of INC0012345&quot;.</strong> No decision, no Ledger write, no Attention item.</p>
+<figure class="diagram"><div class="mermaid">sequenceDiagram
+  participant D as Dock
+  participant O as Orchestrator
+  participant A as servicenow-itsm
+  participant M as MCP Gateway
+  D->>O: POST /ask { text, clientRequestId }
+  O-->>D: 200 { journeyId, taskId }
+  O->>O: triage: one candidate
+  O-->>D: journey.updated submitted
+  O->>A: SendMessage (contextId = journeyId)
+  A-->>O: Task TASK_STATE_WORKING
+  O-->>D: journey.updated working, agentId servicenow-itsm
+  A->>M: MCP tool call: get_incident
+  M-->>A: incident
+  A-->>O: Task TASK_STATE_COMPLETED + record artifact
+  O-->>D: journey.updated completed, cards [record]</div></figure>
+<p>The handoff chip appears on the <code>working</code> event, which is why <code>agentId</code> must be on it and not held back until completion (product invariant 2).</p>
+<p><strong>Action ask — &quot;Raise a P2 for the payments dashboard outage&quot;.</strong> The full human-in-the-loop path.</p>
+<figure class="diagram"><div class="mermaid">sequenceDiagram
+  participant D as Dock
+  participant O as Orchestrator
+  participant A as servicenow-itsm
+  participant L as Ledger
+  D->>O: POST /ask
+  O->>A: SendMessage (contextId = journeyId)
+  A-->>O: TASK_STATE_WORKING
+  A-->>O: TASK_STATE_INPUT_REQUIRED + confirmation artifact
+  O->>L: proposed
+  O->>O: write Attention item, checkpoint the workflow
+  O-->>D: journey.updated input-required, cards [confirmation]
+  O-->>D: attention.created (badge, survives a closed panel)
+  Note over D,O: hours may pass, laptop sleeps, orchestrator redeploys
+  D->>O: POST /attention/{id}/decide { decision, freeText?, idempotencyKey }
+  O-->>D: 200 { accepted: true }
+  O->>L: confirmed (orchestrator only)
+  O-->>D: attention.resolved
+  O->>O: restore checkpoint
+  O->>A: SendMessage (same taskId + contextId, carries option and freeText)
+  A-->>O: TASK_STATE_WORKING
+  A-->>O: TASK_STATE_COMPLETED + record artifact
+  O->>L: executed
+  O-->>D: journey.updated completed, cards [record]
+  O-->>D: ledger.appended</div></figure>
+<p>Nothing irreversible happens before the decision arrives (product invariant 4). The proposal is written and checkpointed <strong>before</strong> it is announced, so a crash between the two loses a notification, not a proposal.</p>
+<p>The relayed decision is an ordinary follow-up message on the same task:</p>
+<pre><code class="language-json">{
+  &quot;jsonrpc&quot;: &quot;2.0&quot;,
+  &quot;id&quot;: &quot;req-014&quot;,
+  &quot;method&quot;: &quot;SendMessage&quot;,
+  &quot;params&quot;: {
+    &quot;message&quot;: {
+      &quot;role&quot;: &quot;user&quot;,
+      &quot;messageId&quot;: &quot;6f1c...&quot;,
+      &quot;contextId&quot;: &quot;&lt;journeyId&gt;&quot;,
+      &quot;taskId&quot;: &quot;&lt;taskId&gt;&quot;,
+      &quot;parts&quot;: [
+        { &quot;text&quot;: &quot;Create P2. Also add the vendor ticket reference to the work notes.&quot; }
+      ],
+      &quot;metadata&quot;: {
+        &quot;loop.decision&quot;: { &quot;optionId&quot;: &quot;create&quot;, &quot;attentionId&quot;: &quot;...&quot;, &quot;decidedAt&quot;: &quot;2026-09-21T10:04:00Z&quot; }
+      }
+    }
+  }
+}
+</code></pre>
+<p>The chosen <code>optionId</code> goes in <code>metadata</code> so the agent does not have to parse intent out of prose, and the user&#39;s <code>freeText</code> goes in <code>parts</code> so the agent can act on it. An agent that ignores <code>freeText</code> is not compliant.</p>
+<p><strong>Disambiguation — &quot;Order 20 laptops&quot;.</strong> Triage finds two candidates, so no agent is engaged at all until the user picks.</p>
+<figure class="diagram"><div class="mermaid">sequenceDiagram
+  participant D as Dock
+  participant O as Orchestrator
+  participant SN as servicenow-itsm
+  participant OF as oracle-fusion
+  D->>O: POST /ask
+  O->>O: triage: two candidates, no guess
+  O-->>D: journey.updated input-required, cards [choice by loop-orchestrator]
+  O-->>D: attention.created
+  D->>O: POST /attention/{id}/decide { decision: "oracle-fusion" }
+  O->>OF: SendMessage (contextId = journeyId, new taskId)
+  OF-->>O: TASK_STATE_INPUT_REQUIRED (which cost centre?)
+  O-->>D: journey.updated + attention.created
+  D->>O: POST /attention/{id}/decide
+  O->>OF: SendMessage (same taskId)
+  OF-->>O: TASK_STATE_COMPLETED + record artifact
+  O-->>D: journey.updated completed</div></figure>
+<p>Note that <code>servicenow-itsm</code> is never contacted. A <code>choice</code> card is cheaper than a wrong action, and the second pause shows that a sub-agent can ask its own clarifying question through exactly the same mechanism as the orchestrator&#39;s.</p>
+<h3 id="6-7-streaming-subscription-and-push-notifications"><a class="anchor" href="#6-7-streaming-subscription-and-push-notifications">6.7 Streaming, subscription and push notifications</a></h3>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Mechanism</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Agent declares <code>capabilities.streaming</code> and work is short</td>
+<td><code>SendStreamingMessage</code>, or <code>SendMessage</code> then <code>SubscribeToTask</code></td>
+</tr>
+<tr>
+<td>Work outlives a connection, or the agent is checkpointed</td>
+<td><code>CreateTaskPushNotificationConfig</code> with a callback <code>url</code>, per-task <code>token</code> and <code>authentication</code></td>
+</tr>
+<tr>
+<td>Orchestrator restarted and lost its subscription</td>
+<td><code>GetTask</code>, or <code>ListTasks</code> filtered by <code>contextId</code>, to re-establish state</td>
+</tr>
+</tbody></table>
+<p>Loop <strong>prefers push notification configs for any task that can reach <code>input-required</code></strong>, because those are exactly the tasks that outlive a subscription. <code>SendMessageConfiguration.returnImmediately</code> must be <code>true</code> on those sends: the default makes the call block until the task reaches a terminal or interrupted state, which would tie an HTTP request to a human decision.</p>
+<h3 id="6-8-cancellation-rejection-and-errors"><a class="anchor" href="#6-8-cancellation-rejection-and-errors">6.8 Cancellation, rejection and errors</a></h3>
+<ul>
+<li><strong>Cancellation</strong> comes from the user. <code>POST /ask/{taskId}/cancel</code> becomes <code>CancelTask</code>; the runtime clears the checkpoint, resolves any open Attention item for that journey, publishes <code>attention.resolved</code>, and reports <code>canceled</code>.</li>
+<li><strong>Rejection</strong> comes from the agent. <code>TASK_STATE_REJECTED</code> means an agent will not do the work — out of policy, out of scope, or refused at creation. It is terminal and the dock shows a <code>summary</code> card with <code>tone: &#39;failure&#39;</code>.</li>
+<li><strong>Failure</strong> is <code>TASK_STATE_FAILED</code>. The agent should attach a <code>summary</code> card with <code>retryable</code> set honestly, plus a <code>link</code> into the system of record so the user can check by hand.</li>
+<li><strong>No card, no state:</strong> if the orchestrator has no message to show, the dock falls back to <code>FAILURE_COPY</code> in <code>contracts/a2a/state-map.ts</code> — &quot;The agent could not complete this&quot;, &quot;The agent declined this ask&quot;, &quot;Cancelled.&quot; A blank failure is a bug, not a state.</li>
+</ul>
+<h3 id="6-9-security-between-agents"><a class="anchor" href="#6-9-security-between-agents">6.9 Security between agents</a></h3>
+<ul>
+<li>One Entra identity per sub-agent, with only the scopes that agent needs. No shared service principal.</li>
+<li>User-context calls use On-Behalf-Of (§4.7). Where a platform cannot accept a user token, the approving user is stamped in the Ledger <code>actor</code>.</li>
+<li>The registry verifies Agent Card <code>signatures[]</code> and refuses to route to an agent whose card fails verification or whose endpoint host is not allow-listed.</li>
+<li>Every MCP tool call is logged by the Gateway with <code>journeyId</code>, <code>taskId</code> and <code>agentId</code>. Tool allow-listing is per agent, so a sub-agent cannot reach another platform&#39;s tools.</li>
+<li><code>disabledAgents[]</code> from remote config (§4.8) removes an agent from triage without a deployment.</li>
+<li>Card bodies, free-text replies and UPNs are never logged above <code>debug</code> on either side of the A2A boundary.</li>
+</ul>
+<hr>
+<h2 id="7-one-ask-several-platforms"><a class="anchor" href="#7-one-ask-several-platforms">7. One ask, several platforms</a></h2>
+<p>&quot;Approve Reem&#39;s claim and tell Ahmed it&#39;s done&quot; is one journey, two tasks, two agents, one visible sequence. Triage builds a sequential workflow instead of a handoff.</p>
+<figure class="diagram"><div class="mermaid">sequenceDiagram
+  participant D as Dock
+  participant O as Orchestrator
+  participant OF as oracle-fusion
+  participant M as m365
+  D->>O: POST /ask
+  O->>OF: SendMessage (contextId = journeyId, taskId = t1)
+  OF-->>O: t1 TASK_STATE_INPUT_REQUIRED + confirmation
+  O-->>D: journey.updated + attention.created
+  D->>O: POST /attention/{id}/decide (approve)
+  O->>OF: SendMessage (t1, decision)
+  OF-->>O: t1 TASK_STATE_COMPLETED + record
+  O-->>D: journey.updated completed, agentId oracle-fusion
+  O->>M: SendMessage (same contextId, taskId = t2, referenceTaskIds [t1])
+  O-->>D: journey.updated working, agentId m365
+  M-->>O: t2 TASK_STATE_COMPLETED + summary
+  O-->>D: journey.updated completed, agentId m365</div></figure>
+<p>Rules for a sequenced journey:</p>
+<ul>
+<li>One <code>contextId</code> throughout. <code>referenceTaskIds</code> carries the earlier task so the second agent can see the approved claim without the orchestrator paraphrasing it.</li>
+<li>Each task emits its own handoff chip. The user sees Oracle Fusion act and then Microsoft 365 act, in that order.</li>
+<li>Each task writes its own Ledger rows, so Recent groups two platforms under one journey.</li>
+<li>A step that fails stops the sequence. The orchestrator does not tell Ahmed the claim was approved if the approval failed.</li>
+</ul>
+<hr>
+<h2 id="8-failure-modes"><a class="anchor" href="#8-failure-modes">8. Failure modes</a></h2>
+<table>
+<thead>
+<tr>
+<th>Failure</th>
+<th>Ledger</th>
+<th>What the user sees</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Sub-agent times out</td>
+<td><code>failed</code></td>
+<td><code>summary</code>, <code>tone: &#39;failure&#39;</code>, retryable, with a link to the platform</td>
+</tr>
+<tr>
+<td>Sub-agent unreachable or card fails verification</td>
+<td><code>failed</code> by the orchestrator</td>
+<td><code>summary</code> naming the platform, not the internal error</td>
+</tr>
+<tr>
+<td>Agent returns a card that fails schema validation</td>
+<td><code>failed</code> if nothing valid remains</td>
+<td>Valid cards render; invalid ones are dropped and logged. Never a broken card</td>
+</tr>
+<tr>
+<td>MCP tool call denied by the Gateway</td>
+<td><code>failed</code></td>
+<td><code>summary</code> saying the action is not permitted. No retry offered</td>
+</tr>
+<tr>
+<td>Platform write succeeded but the response was lost</td>
+<td><code>executed</code> on the next reconciliation</td>
+<td>Possible duplicate proposal. Agents must make platform writes idempotent per <code>taskId</code></td>
+</tr>
+<tr>
+<td>Ledger write fails</td>
+<td>—</td>
+<td>The action is <strong>not</strong> announced as done. Fan-out follows the Ledger, so an unrecorded action is never reported as complete</td>
+</tr>
+<tr>
+<td>Web PubSub outage</td>
+<td>Unaffected</td>
+<td><code>connectivity_changed</code> to <code>reconnecting</code> then <code>offline</code>; decisions are blocked; Recent still reads over HTTP</td>
+</tr>
+<tr>
+<td>Dock offline when a decision is attempted</td>
+<td>—</td>
+<td>Decision buttons disabled with a status strip. Nothing is queued locally</td>
+</tr>
+<tr>
+<td>Attention item passes <code>expiresAt</code></td>
+<td><code>expired</code></td>
+<td>Item becomes read-only; the journey reports <code>canceled</code> with &quot;The proposal expired before you decided&quot;</td>
+</tr>
+<tr>
+<td>Same item decided on two devices</td>
+<td>One <code>confirmed</code> row</td>
+<td>Second device gets <code>409</code> and shows &quot;Already decided elsewhere&quot;</td>
+</tr>
+<tr>
+<td>User token expires mid-task</td>
+<td>Unaffected</td>
+<td><code>session_changed</code>; a &quot;Sign in again&quot; Attention item. The checkpointed task waits</td>
+</tr>
+<tr>
+<td>Orchestrator redeployed mid-journey</td>
+<td>Unaffected</td>
+<td>Nothing. Checkpoints restore and pending requests are re-emitted</td>
+</tr>
+<tr>
+<td>Triage finds no agent</td>
+<td>No row for the ask itself</td>
+<td><code>summary</code> saying no agent covers this yet; the ask is recorded for the Loop team</td>
+</tr>
+</tbody></table>
+<p>The recurring principle: <strong>record, then announce.</strong> Every row above that says &quot;not announced as done&quot; is a case where reversing that order would tell a user something untrue.</p>
+<hr>
+<h2 id="9-open-questions"><a class="anchor" href="#9-open-questions">9. Open questions</a></h2>
+<ul>
+<li><strong>Card artifact media type (§6.5).</strong> <code>application/vnd.loop.card+json</code> as a single artifact part is a proposal. Needs orchestrator team sign-off, and a <code>contracts@0.x</code> note once agreed.</li>
+<li><strong><code>A2AState</code> spelling (§6.4).</strong> Keep the kebab-case enum and normalise in the orchestrator, or follow the spec&#39;s <code>TASK_STATE_*</code> and remap in the dock. Normalising server-side is the current recommendation because it keeps one change out of the dock; revisit if A2A retires the legacy spelling.</li>
+<li><strong>Attention escalation.</strong> Expiry is decided; what happens to an item that ages towards expiry without a decision is not. Reminder, reassignment, or nothing.</li>
+<li><strong>Who may route an Attention item to a given user.</strong> A policy question, and a security one.</li>
+<li><strong>Ledger retention and export.</strong> How long rows live, and whether the trail is exportable for audit.</li>
+<li><strong>Cross-device open items.</strong> Decisions are idempotent and the dock shows &quot;Already decided elsewhere&quot;; whether the losing device should also surface <em>what</em> was decided is open.</li>
+<li><strong>Triage evaluation.</strong> How routing accuracy is measured as agents are onboarded, and what the regression bar is before a new agent goes live.</li>
+</ul>
+<hr>
+<h2 id="changes-in-v0-1"><a class="anchor" href="#changes-in-v0-1">Changes in v0.1</a></h2>
+<p>Initial version. Establishes this document as the owner of the server-side architecture: the component inventory, the API-edge contract read off the dock&#39;s existing Rust client, orchestrator triage and workflow behaviour in place of the scripted mock, the mock-to-real correspondence table, and the wire-level A2A contract including the <code>TaskState</code> normalisation table against <code>contracts/a2a/state-map.ts</code>.</p>
+<footer>
+Generated from <code>docs/system-architecture.md</code>. Edit the Markdown source, not this file.
+Diagrams are rendered with Mermaid from a CDN; without network access the diagram source is shown as text.
+</footer>
+</main>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({
+  startOnLoad: false,
+  theme: dark ? 'dark' : 'neutral',
+  securityLevel: 'strict',
+  fontFamily: 'Segoe UI Variable Text, Segoe UI, system-ui, sans-serif',
+  themeVariables: { fontSize: '20px' },
+  flowchart: { curve: 'basis', useMaxWidth: false },
+  sequence: { useMaxWidth: false, mirrorActors: false }
+});
+try {
+  await mermaid.run({ querySelector: '.mermaid' });
+  // Mermaid scales an SVG down to its container, which makes the wide diagrams
+  // unreadable in a narrow window. Fill the available width, but never shrink
+  // past half of natural size: below that the figure scrolls horizontally.
+  for (const svg of document.querySelectorAll('.mermaid svg')) {
+    const box = svg.viewBox.baseVal;
+    if (!box || !box.width) continue;
+    svg.style.maxWidth = 'none';
+    svg.style.width = '100%';
+    svg.style.height = 'auto';
+    svg.style.minWidth = Math.round(box.width * 0.5) + 'px';
+  }
+} catch (err) {
+  console.warn('Mermaid could not render; diagram sources are shown as text.', err);
+}
+</script>
+</body>
+</html>

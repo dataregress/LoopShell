@@ -1,0 +1,47 @@
+---
+description: Documentation conventions for Loop Dock - header table, versioning, ADR format, consistency across brief, technology, UI/UX and architecture docs.
+globs: docs/**/*.md
+alwaysApply: false
+---
+
+# Documentation conventions
+
+## Document set and ownership of facts
+
+| Document | Owns |
+|---|---|
+| `docs/design-brief.md` | What Loop Dock is, scope, the three modes, principles, journey model, non-goals, demo scenarios |
+| `docs/ui-ux.md` | Interaction spec, visual system, motion, accessibility, component inventory, shortcuts |
+| `docs/shell-architecture.md` | Windows, focus, native details, IPC, networking, security, budgets, test matrix |
+| `docs/system-architecture.md` | Server-side components, orchestrator behaviour, the API edge contract, A2A between orchestrator and sub-agents, mock-to-real mapping |
+| `docs/technology.md` | Stack choices, versions, rationale, rejected alternatives, links |
+| `docs/adr/ADR-NNN-*.md` | Why a decision was made, alternatives, consequences |
+
+A fact lives in one document; others link to it. If two docs disagree, the owning document wins and the other is fixed in the same PR.
+
+## Header table (every document)
+
+```markdown
+| | |
+|---|---|
+| **Status** | Draft vX.Y / Accepted / Superseded by ... |
+| **Last updated** | DD Month YYYY |
+| **Owner** | Loop Platform Team |
+| **Audience** | ... |
+| **Related** | links |
+```
+
+Bump the minor version and the date on every substantive edit. Record what changed in a "Changes in vX.Y" section at the end.
+
+## ADR format (`docs/adr/ADR-NNN-kebab-title.md`)
+
+Sections in this order: **Status** (Proposed / Accepted / Superseded), **Context**, **Decision**, **Alternatives considered** (each with why rejected), **Consequences** (positive, negative, follow-ups), **References**. Numbered sequentially; never renumber. Superseding an ADR adds a new one and marks the old one.
+
+## Writing rules
+
+- Plain, direct sentences. No marketing language, no emojis, no hedging.
+- Use the product vocabulary exactly: **pill** (the anchor), **panel**, **Ask**, **Attention**, **Recent**, **journey**, **Ledger**, **card**, **sub-agent**, **orchestrator**. Do not introduce synonyms (widget, sidebar, dock item, notification).
+- Any new functional requirement, mode, card type, window or integration requires an ADR before it appears in a doc. Interaction and visual changes go straight into `ui-ux.md` with a version bump.
+- Comparable products (for example Superhuman Go) may be cited as sources of interaction or visual patterns only. Never import their functions into requirements.
+- Mermaid for state machines and window topology; tables for specs; no screenshots of third-party products committed to the repo.
+- Keep the technology link appendix in `docs/technology.md` current when a dependency is added or removed.

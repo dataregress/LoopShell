@@ -1,0 +1,13 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "anchor",
+  "description": "The pill window. Listens to shell events and calls app commands; nothing else (docs/shell-architecture.md §2, §7).",
+  "windows": ["anchor"],
+  "permissions": [
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "core:window:allow-inner-position",
+    "core:window:allow-outer-position",
+    "core:window:allow-scale-factor"
+  ]
+}

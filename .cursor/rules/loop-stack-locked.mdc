@@ -1,0 +1,41 @@
+---
+description: Locked technology stack, target versions and banned alternatives for the Loop Dock shell repository.
+alwaysApply: true
+---
+
+# Locked stack (see docs/technology.md and docs/adr/ADR-001-shell-stack.md)
+
+This repository contains the dock only: `src-tauri/` (Rust shell), `src/` (React UI), `contracts/` (schemas and generated bindings), `tools/mock-orchestrator/`. The orchestrator, sub-agents and Ledger live elsewhere.
+
+| Layer | Locked choice | Target |
+|---|---|---|
+| Shell | Tauri **2.x** with Rust stable | Tauri 2 APIs only; never Tauri 1 (`tauri::Window` v1 builders, `tauri.conf.json` v1 keys, `allowlist`) |
+| Webview | WebView2 (Windows 11), WKWebView (macOS) | Provided by OS; never bundle Chromium |
+| UI | React **19**, TypeScript strict, Vite | Function components, hooks; no class components |
+| Motion | `motion` (Motion for React) | Presets from `src/ui/motion.ts` only |
+| Styling | Tailwind **v4** (`@theme`, CSS-first config), Radix Primitives, Lucide icons | No `tailwind.config.js`; no other icon set |
+| State | Zustand (UI state), TanStack Query (server reads), Zod **v4** (all inbound validation) | No Redux, MobX, or hand-rolled fetch caches |
+| IPC | `tauri-specta` v2 for every command and event | Bindings committed to `contracts/bindings/`; CI fails on drift |
+| Networking | Rust only: `reqwest`, `tokio`, `tokio-tungstenite` | The webview never talks to the backend directly |
+| Auth | Entra ID auth-code + PKCE in Rust (`oauth2` crate), tokens in OS keychain (`keyring`) | No MSAL, no tokens in webview storage |
+| Real-time | Azure Web PubSub, `json.reliable.webpubsub.azure.v1` subprotocol, Rust client | Reconnect with backoff; dedupe by `eventId` |
+| Native | `tauri-nspanel` (macOS), `windows` crate (Windows), `window-vibrancy` | Vendor AppKit glue into `native-macos` if the crate stalls |
+| Plugins | global-shortcut, single-instance (+ deep-link feature), deep-link, autostart, notification, log, window-state | Add others only via ADR |
+| Packaging | MSI via WiX (Windows), signed + notarized `.pkg` (macOS) | Azure Trusted Signing; Apple Developer ID |
+| Distribution | Intune, Jamf | MDM owns updates for the pilot |
+| Telemetry | Sentry (Rust + browser via Tauri plugin), OpenTelemetry to Application Insights | Traces carry `journeyId` and `taskId` |
+
+## Banned (do not suggest, do not scaffold)
+
+- Electron, NW.js, Flutter, .NET MAUI, Qt, or any second shell.
+- MSIX packaging; NSIS installers; `tauri-plugin-updater` during the pilot.
+- MSAL for the desktop flow; WAM broker without an ADR update to ADR-002.
+- `fetch`/`axios`/`EventSource`/`WebSocket` from `src/` to any Loop backend. All I/O is a Tauri command or event.
+- `localStorage`, `sessionStorage`, IndexedDB or cookies for tokens or Ledger data.
+- Full-height hover hot zones, cursor polling, or `set_ignore_cursor_events` for the anchor. The collapsed **edge tab** (ADR-005) is the only hover-reveal surface; it is not full-height. Pointer enter/leave on the tab expands the pill.
+- Native window resizing to animate either window. The panel is fixed-size and Motion animates its content. The **anchor** is fixed at the pill size; a window region clips it to the tab when collapsed and Motion slides the chrome inside it (ADR-005). Never resize WebView2 per frame: its stale frame is anchored top-left and shows a bare screen edge.
+
+## Version hygiene
+
+- Pin exact versions in `Cargo.toml` and `package.json`; upgrade in dedicated PRs.
+- Before using any Tauri, Motion or Tailwind API, confirm it exists in the pinned version's docs (Context7 or docs.rs). AI-generated code frequently targets Tauri 1 or Tailwind 3; `cargo check` and `tsc --noEmit` run in CI to catch it.

@@ -1,0 +1,64 @@
+---
+description: Rust shell conventions for the Loop Dock Tauri app - two-window model, non-activating behaviour, IPC via tauri-specta, Rust-owned networking, capabilities.
+globs: src-tauri/**/*.rs, src-tauri/tauri.conf.json, src-tauri/capabilities/**
+alwaysApply: false
+---
+
+# Tauri shell (Rust) conventions
+
+Full detail in `docs/shell-architecture.md`. This rule is the checklist.
+
+## Two windows, fixed labels
+
+| Label | Purpose | Flags |
+|---|---|---|
+| `anchor` | The edge tab / pill. Collapsed by default; hover expands. Opaque content on a transparent window. | `decorations:false`, `transparent:true`, `shadow:false`, `alwaysOnTop:true`, `skipTaskbar:true`, `resizable:false`, `focusable:false`, `visible:true` (after sign-in). Never `set_ignore_cursor_events(true)`: it must receive clicks. Fixed at the pill size; `SetWindowRgn` clips it to the tab when collapsed so the gutter neither draws nor takes clicks (ADR-005). |
+| `panel` | Ask / Attention / Recent. Fixed size, shown beside the pill. | Same flags plus `visible:false` at start; `focusable:false` by default; programmatically activated only when the user clicks the composer. |
+
+Never create a third window. Settings, dialogs and toasts render inside `panel`.
+
+## Non-activating behaviour
+
+- macOS: convert `panel` and `anchor` to `NSPanel` via `tauri-nspanel` with `NSWindowStyleMaskNonActivatingPanel`, `hidesOnDeactivate = false`, collection behaviour `canJoinAllSpaces | fullScreenAuxiliary`, activation policy `Accessory`. Set `sharingType = .none` when screen-share exclusion is on.
+- Windows: add `WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW` to both HWNDs via the `windows` crate; `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)` when exclusion is on.
+- Before activating `panel` for typing, store `GetForegroundWindow()` (Windows) / `NSWorkspace.frontmostApplication` (macOS). On hide, restore it. This is `native::focus::{capture_previous, restore_previous}`; never call `SetForegroundWindow` elsewhere.
+
+## Module layout
+
+```
+src-tauri/src/
+  main.rs            # plugin registration, specta builder, tray, shortcut
+  windows/           # anchor.rs, panel.rs, placement.rs (monitor, DPI, work area, clamp)
+  native/            # mod.rs (trait), macos.rs, windows.rs, focus.rs, capture.rs
+  ipc/               # commands.rs, events.rs (all #[tauri::command] + #[specta::specta])
+  auth/              # pkce.rs, session.rs, keychain.rs
+  realtime/          # webpubsub.rs (client), reconnect.rs, dedupe.rs
+  api/               # orchestrator HTTP client (reqwest); the only place URLs live
+  settings/          # persisted user settings (pill y, pinned, shortcut, theme override)
+  telemetry/         # sentry + otel init, journeyId/taskId propagation
+```
+
+`native/macos.rs` and `native/windows.rs` are the only files allowed to `#[cfg(target_os)]`-import AppKit/Win32 symbols.
+
+## IPC
+
+- Every command: `#[tauri::command] #[specta::specta] async fn name(...) -> Result<T, IpcError>`. Register in `ipc::commands::collect()`.
+- Every event: a `#[derive(Serialize, Type, Event)]` struct in `ipc/events.rs`. Emit via typed `.emit(&app)`.
+- `IpcError` is a `thiserror` enum serialised as `{ code, message, retryable }`; never return `String` errors.
+- Command names are snake_case verbs: `dock_show`, `dock_hide`, `dock_pin`, `dock_set_mode`, `anchor_set_y`, `auth_sign_in`, `auth_sign_out`, `auth_get_session`, `ask_submit`, `ask_cancel`, `attention_decide`, `ledger_query`, `settings_get`, `settings_set`.
+
+## Networking and secrets
+
+- All HTTP and WebSocket traffic lives in `api/` and `realtime/`. The webview has no `connect-src` to Loop backends.
+- Tokens: `keyring` entry `loop-dock/<tenant>/<user>`. Never log them, never send them to the webview, never write them to disk elsewhere.
+- Every request carries `x-journey-id` when known and an OpenTelemetry trace context.
+
+## Capabilities and CSP
+
+- One capability file per window in `src-tauri/capabilities/`. Grant only the permissions the window uses (`core:window:allow-set-position` for `anchor`, not `panel`, etc.).
+- CSP in `tauri.conf.json`: `default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; connect-src 'none'` unless an ADR changes it.
+
+## Logging and errors
+
+- `tauri-plugin-log` with `tracing`; levels: `error` for user-visible failure, `warn` for recoverable (reconnect), `info` for state transitions, `debug` for window geometry. Never log card payload bodies at `info` or above.
+- Native calls that can fail (`HWND` lookups, `NSPanel` conversion) return `anyhow::Result` and are logged once; the dock must degrade (normal window) rather than panic.

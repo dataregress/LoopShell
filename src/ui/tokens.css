@@ -1,0 +1,249 @@
+@import 'tailwindcss';
+
+/*
+  Loop Dock design tokens (docs/ui-ux.md §4).
+  Raw palette values live on :root and switch with the OS or [data-theme].
+  Components only ever use the semantic utilities generated from @theme.
+*/
+
+:root {
+  color-scheme: light dark;
+
+  --surface: #fafaf7;
+  --surface-raised: #ffffff;
+  --surface-sunken: #f1f2ee;
+  --border: #e2e5e1;
+  --fg: #0f1f23;
+  --fg-muted: #5b6b6e;
+  --fg-subtle: #8a9799;
+  --primary: #003b48;
+  --primary-fg: #ffffff;
+  --accent: #ffc72c;
+  --info: #00857f;
+  --success: #1e8e5a;
+  --warning: #b7791f;
+  --danger: #b3261e;
+  --attention: #d6453d;
+  --focus: #00b2a9;
+  --elev-pill: 0 2px 8px rgba(0, 0, 0, 0.14);
+  --elev-panel: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #0b1a1e;
+    --surface-raised: #112429;
+    --surface-sunken: #071317;
+    --border: #1f353b;
+    --fg: #e8eeef;
+    --fg-muted: #9fb0b3;
+    --fg-subtle: #6e8083;
+    --primary: #00b2a9;
+    --primary-fg: #04262a;
+    --accent: #ffc72c;
+    --info: #4fd1c5;
+    --success: #57c785;
+    --warning: #e0a83a;
+    --danger: #f0716a;
+    --attention: #f0716a;
+    --focus: #4fd1c5;
+    --elev-pill: 0 2px 8px rgba(0, 0, 0, 0.5);
+    --elev-panel: 0 8px 32px rgba(0, 0, 0, 0.6);
+  }
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+  --surface: #fafaf7;
+  --surface-raised: #ffffff;
+  --surface-sunken: #f1f2ee;
+  --border: #e2e5e1;
+  --fg: #0f1f23;
+  --fg-muted: #5b6b6e;
+  --fg-subtle: #8a9799;
+  --primary: #003b48;
+  --primary-fg: #ffffff;
+  --accent: #ffc72c;
+  --info: #00857f;
+  --success: #1e8e5a;
+  --warning: #b7791f;
+  --danger: #b3261e;
+  --attention: #d6453d;
+  --focus: #00b2a9;
+  --elev-pill: 0 2px 8px rgba(0, 0, 0, 0.14);
+  --elev-panel: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --surface: #0b1a1e;
+  --surface-raised: #112429;
+  --surface-sunken: #071317;
+  --border: #1f353b;
+  --fg: #e8eeef;
+  --fg-muted: #9fb0b3;
+  --fg-subtle: #6e8083;
+  --primary: #00b2a9;
+  --primary-fg: #04262a;
+  --accent: #ffc72c;
+  --info: #4fd1c5;
+  --success: #57c785;
+  --warning: #e0a83a;
+  --danger: #f0716a;
+  --attention: #f0716a;
+  --focus: #4fd1c5;
+  --elev-pill: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --elev-panel: 0 8px 32px rgba(0, 0, 0, 0.6);
+}
+
+/* Semantic tokens. `inline` so utilities resolve the raw variable at the element. */
+@theme inline {
+  --color-*: initial;
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-border: var(--border);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-primary: var(--primary);
+  --color-primary-fg: var(--primary-fg);
+  --color-accent: var(--accent);
+  --color-info: var(--info);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-attention: var(--attention);
+  --color-focus: var(--focus);
+
+  --shadow-pill: var(--elev-pill);
+  --shadow-panel: var(--elev-panel);
+}
+
+@theme {
+  --font-sans: 'Segoe UI Variable Text', 'Segoe UI', -apple-system, 'SF Pro Text', system-ui, sans-serif;
+
+  --radius-*: initial;
+  --radius-pill: 9999px;
+  --radius-panel: 16px;
+  --radius-card: 12px;
+  --radius-control: 8px;
+  --radius-chip: 9999px;
+  --radius-sm: 4px;
+
+  --text-*: initial;
+  --text-xs: 11px;
+  --text-xs--line-height: 16px;
+  --text-xs--font-weight: 500;
+  --text-sm: 12.5px;
+  --text-sm--line-height: 18px;
+  --text-base: 14px;
+  --text-base--line-height: 20px;
+  --text-lg: 16px;
+  --text-lg--line-height: 22px;
+  --text-lg--font-weight: 600;
+  --text-xl: 20px;
+  --text-xl--line-height: 26px;
+  --text-xl--font-weight: 600;
+
+  --spacing: 4px;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+    background: transparent;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+    color: var(--fg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior: none;
+    user-select: none;
+  }
+
+  input,
+  textarea,
+  [contenteditable] {
+    user-select: text;
+  }
+
+  *:focus {
+    outline: none;
+  }
+
+  *:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--fg-subtle) 45%, transparent);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@utility hairline-b {
+  border-bottom: 1px solid var(--border);
+}
+
+/* Skeleton shimmer: 1.2 s linear gradient; disabled under reduced motion. */
+@utility shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--surface-sunken) 0%,
+    color-mix(in srgb, var(--surface-sunken) 60%, var(--surface-raised)) 50%,
+    var(--surface-sunken) 100%
+  );
+  background-size: 200% 100%;
+  animation: loop-shimmer 1.2s linear infinite;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@utility attention-pulse {
+  animation: loop-attention-pulse 2.2s ease-in-out infinite;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+[data-motion='reduced'] .shimmer,
+[data-motion='reduced'] .attention-pulse {
+  animation: none;
+}
+
+@keyframes loop-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes loop-attention-pulse {
+  50% {
+    opacity: 0.55;
+    transform: scale(0.88);
+  }
+}
