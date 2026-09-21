@@ -44,6 +44,7 @@ This is the first ADR to execute: every other ADR in the 006–015 set builds ag
    | Addition | Shape | Why |
    |---|---|---|
    | `GET /config` → `RemoteConfig` | `{ contractsVersion: string, dockPaused: boolean, disabledAgents: string[], forceSignOut: boolean, minVersion: string, message?: string, pollIntervalSec?: number, externalHosts?: string[], agents: AgentRegistryEntry[] }` | Kill switch (§4.8) and the authoritative registry in one poll. `contractsVersion` is the tag the edge serves (item 8). `externalHosts` extends the dock's `open_external` allow-list so a new sub-agent's system-of-record host does not need a dock build. |
+   | `GET /negotiate` → `NegotiateResponse` | `{ url: string }` | The endpoint has no schema today, so it would be missing from the JSON Schema bundle and the OpenAPI document. `reconnectionToken` is deliberately absent: the dock does not read it (review pass). |
    | `AgentRegistryEntry` | `{ agentId, displayName, platform, state: 'shadow' \| 'enabled' \| 'disabled' }` | Served registry; the dock merges it over `contracts/registry/agents.ts`. `shadow` means "included in triage, never handed work" (ADR-012). No `iconUrl`: the dock's CSP forbids remote images. |
    | `AttentionNewEvent.pop?: boolean` (default `true`) | Added to the `attention.created` payload | The "one decision, two views" rule, made explicit (item 4). |
    | `AttentionRefEvent.decision?: { optionId, by: Person }` on `attention.resolved` | Optional | Resolves the §9 cross-device question: the losing device may show what was decided. |
@@ -85,15 +86,15 @@ Owner for every row: Waqas Ahmed. The "Function" column names the hat being worn
 | # | Prerequisite | Function | State | Why it blocks |
 |---|---|---|---|---|
 | P1 | A named contract signer with authority to sign | Orchestrator | **Met** — the owner signs (Status above) | Item 1 and item 8 need a signature, not a review comment |
-| P2 | `pnpm test` green in `LoopShell` (`contracts/schemas/__tests__/fixtures.test.ts`) | Loop Platform | Confirm at step 2 | The tag must be a passing state |
+| P2 | `pnpm test` green in `LoopShell` (`contracts/schemas/__tests__/fixtures.test.ts`) | Loop Platform | **Met** — owner confirmed, 21 September 2026 | The tag must be a passing state |
 | P3 | Decision on repository hosting (GitHub or Azure DevOps) for `loop-orchestrator` | Cloud & AI | Open | Determines where release artifacts are published (item 6) |
 | P4 | ADR-007 wire decisions accepted (media type, state spelling, binding) | Orchestrator | Open — ADR-007 is Proposed | Item 5 records them; §9 must not stay open past 0.2 |
 
 ### Steps
 
-1. Review pass (60 minutes): walk `contracts/schemas/` against `system-architecture.md` §4 wearing the orchestrator hat; note anything the server side could not implement as specified. Any disagreement is resolved by changing the doc or by a 0.2 addition, never by an unlogged 0.1 change.
-2. Record sign-off in `contracts/CHANGELOG.md` (name, date, role "owner, signing for the orchestrator"). Tag `contracts@0.1`.
-3. Add `contracts/schemas/config.ts` (`RemoteConfig`, `AgentRegistryEntry`), extend `events.ts` (`pop`, `decision`), extend `dock.ts` (`DockState.remote`), add fixtures for each, update `contracts/fixtures/` and the fixture tests.
+1. **Done, 21 September 2026.** Review of `contracts/schemas/` against `system-architecture.md` §4, checked against `src-tauri/src/api/mod.rs` and `realtime/webpubsub.rs`. Outcome: every 0.1 shape is implementable. Disagreements were in the prose, and were fixed in `system-architecture.md` the same day (negotiate body, wire envelope, ledger recipient, query defaults, decision-relay rules, expiry wording). One addition joined the 0.2 table: `NegotiateResponse`. Nothing in `contracts/schemas/` changed. The gaps already scheduled for 0.2 (remote config, `pop`, `attention.resolved.decision`) were confirmed and left there.
+2. **Done, 21 September 2026.** `contracts/CHANGELOG.md` records Waqas Ahmed, owner, signing for the orchestrator. The `contracts@0.1` tag points at the commit that contains that entry.
+3. Add `contracts/schemas/config.ts` (`RemoteConfig`, `AgentRegistryEntry`) and `NegotiateResponse` (in `session.ts` or `ipc.ts`), extend `events.ts` (`pop`, `decision`), extend `dock.ts` (`DockState.remote`), add fixtures for each, update `contracts/fixtures/` and the fixture tests.
 4. Add the Rust IPC types and the `remote_config_get` command / `remote_config_changed` event as **stubs that return the build-time defaults**; regenerate `contracts/bindings/bindings.ts`. Behaviour lands in ADR-014.
 5. Update the mock: serve `GET /config` from a fixture; publish `attention.created { pop: false }` in `Ctx.ask()`; add the idempotent `POST /ask` behaviour.
 6. Write `contracts/scripts/build-dist.ts` (JSON Schema bundle, fixtures, OpenAPI) and wire it to `pnpm contracts:dist`; commit nothing under `contracts/dist/` (generated at tag time).

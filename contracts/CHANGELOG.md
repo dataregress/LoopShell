@@ -1,8 +1,8 @@
 # Contracts changelog
 
-One entry per `contracts@MAJOR.MINOR` tag. Minor is additive; major is anything else. The orchestrator team signs off every tag.
+One entry per `contracts@MAJOR.MINOR` tag. Minor is additive; major is anything else. The owner signs every tag (ADR-006), in the role "owner, signing for the orchestrator" until a separate orchestrator team is named.
 
-## contracts@0.1 (unreleased)
+## contracts@0.1
 
 Initial schemas, mirroring `docs/design-brief.md` §3.3 and `docs/shell-architecture.md` §5:
 
@@ -17,4 +17,4 @@ Initial schemas, mirroring `docs/design-brief.md` §3.3 and `docs/shell-architec
 
 - `anchor_set_expanded` command (edge tab ↔ pill, ADR-005).
 
-Sign-off: pending.
+Sign-off: Waqas Ahmed, 21 September 2026 — owner, signing for the orchestrator.

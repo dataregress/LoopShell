@@ -128,7 +128,7 @@ This is the frozen contract between the dock and the orchestrator. It is not a p
 | Method and path | Request | Response | Schema |
 |---|---|---|---|
 | `GET /session` | — | `Session` | `contracts/schemas/session.ts` |
-| `GET /negotiate` | — | `{ url, reconnectionToken? }` | §4.6 |
+| `GET /negotiate` | — | `{ url }` | §4.6 |
 | `POST /ask` | `AskSubmitRequest` | `{ journeyId, taskId }` | `contracts/schemas/ipc.ts` |
 | `POST /ask/{taskId}/cancel` | — | `204 No Content` | — |
 | `GET /attention` | — | `AttentionItem[]` | `contracts/schemas/attention.ts` |
@@ -142,8 +142,11 @@ Request and response conventions, all already enforced by the Rust client:
 - **Headers back:** `x-correlation-id` on every response, success or failure. The dock surfaces it in error states, so it must be present.
 - **Timeouts:** 10 s request, 5 s connect. The dock retries a GET once on connect or timeout failure, and retries nothing else, so `POST /ask` and `POST /attention/.../decide` must be safe against a client that gives up and never asks again.
 - **Error body:** `{ code, message, retryable }` where `code` is an `IpcErrorCode`. If the body is absent the dock infers a code from the status, so the status must be right even when the body is not: `401` unauthenticated, `403` rejected, `409` conflict, `400`/`404`/`422` invalid, `408`/`504` timeout, `5xx` internal and retryable.
-- **`POST /ask` returns before the work is done.** It acknowledges with `{ journeyId, taskId }` and every subsequent state change arrives over Web PubSub. `AskSubmitRequest.clientRequestId` is the dedupe key for a resubmitted ask.
-- **`GET /session` is the development and mock path.** With `LOOP_AUTH_MODE=entra` the dock owns the session and this endpoint is informational.
+- **`POST /ask` returns before the work is done.** It acknowledges with `{ journeyId, taskId }` and every subsequent state change arrives over Web PubSub. `AskSubmitRequest.clientRequestId` is the dedupe key for a resubmitted ask: a repeat for the same user returns `200` with the original `{ journeyId, taskId }`, never a second journey. A request that carries `journeyId` continues that journey.
+- **`GET /session` is the development and mock path.** With `LOOP_AUTH_MODE=entra` the dock owns the session and this endpoint is informational. When it is served, `userId` is the token `oid`.
+- **`GET /attention` is scoped to the caller.** The assignee is the token's `oid` and is not a field on `AttentionItem`. `GET /journey/{journeyId}` returns the current cards upserted by `cardId`, plus `decisions[]`.
+- **`GET /ledger` query.** `platform` and `status` are comma-separated and omitted when empty; `scope` is omitted when it is `all`. An omitted parameter means no filter.
+- **JSON is camelCase**, matching the schemas. Fields that carry a schema default (`evidence`, `allowFreeText`, `state`, `tone`, `align`) may be omitted; the dock fills the default. Datetimes are ISO 8601 with a timezone offset. Identifiers typed `Uuid` are RFC 4122; `taskId` is an opaque string. Ledger `eventType` uses `cancelled` (two ells); the A2A state `canceled` is a different field and must not be copied into a ledger row.
 
 ### 4.2 Triage
 
@@ -171,7 +174,7 @@ The runtime is Microsoft Agent Framework. Two patterns, chosen by triage:
 
 The property Loop actually depends on is **checkpointing**. Every pause for a human decision is a checkpoint written to durable storage before the Attention item is announced. This is what makes product invariant 6 true — a closed panel does not lose a proposal — and it is also what lets the laptop sleep, the user sign in on a different machine, or the orchestrator be redeployed mid-journey. On restore, pending requests are re-emitted, matched to their open Attention items by `attentionId`, and the workflow continues.
 
-Journey status is derived, never stored twice. The runtime reports an A2A task state; `A2A_TO_JOURNEY` in [contracts/a2a/state-map.ts](../contracts/a2a/state-map.ts) is the single mapping to the `JourneyStatus` the dock renders.
+Agent-reported task states map onto `JourneyStatus` through `A2A_TO_JOURNEY` in [contracts/a2a/state-map.ts](../contracts/a2a/state-map.ts), and that map is the only translation the dock applies to a live `journey.updated`. The read model may also carry a status the map cannot produce: expiry sets `JourneyThread.status` to `expired` (there is no A2A state for it). The status is a projection of the ledger and the task, not a second source of truth.
 
 ### 4.4 Decision relay
 
@@ -185,7 +188,9 @@ Journey status is derived, never stored twice. The runtime reports an A2A task s
 | Item expired | `409 conflict` | Expired items are read-only |
 | Unknown `attentionId` | `404`, code `invalid` | — |
 
-On acceptance the relay writes the Ledger row before resuming the workflow, appends the decision to the journey's `decisions[]`, stamps `chosenOptionId` or `decidedOptionId` on the originating card so a reopened thread shows what was decided, and publishes `attention.resolved`.
+The `attentionId` in the path and in the body are the same value; a mismatch is `400`, code `invalid`. `AttentionItem.expiresAt` is authoritative when the confirmation card also carries `expiresAt`. A `provide` item and an `auth` item each carry exactly one option (the schema allows up to three; these two kinds do not use the extra room).
+
+On acceptance the relay writes the Ledger row before resuming the workflow, appends a `JourneyDecision` (including `optionLabel`, copied from the chosen option at decision time, because the card may be replaced later), stamps `chosenOptionId` or `decidedOptionId` on the originating card so a reopened thread shows what was decided, and publishes `attention.resolved`.
 
 `freeText` is a first-class input, not a comment. "Approve, but ask for the itemised receipt" is relayed to the sub-agent alongside the chosen option, and the sub-agent is expected to act on it. It is also the most sensitive field in the system: never logged above `debug`, scrubbed before Sentry.
 
@@ -204,19 +209,21 @@ The Ledger is the audit trail, so it is append-only: no component updates or del
 
 `confirmed` is reserved to the orchestrator because it is the row that proves a human decided. A sub-agent that could write it could manufacture consent.
 
-`routedToUser` marks rows that reached the user because someone else's journey routed a decision to them, which is what the Recent `scope` filter (`all` / `mine` / `routed`) reads. Where a platform requires a service identity — Oracle Fusion today — the approving user is stamped in `actor`, so the trail never shows a service account.
+`routedToUser` marks rows that reached the user because someone else's journey routed a decision to them, which is what the Recent `scope` filter (`all` / `mine` / `routed`) reads. It is relative to the recipient: `ledger.appended` is published once per recipient with `routedToUser` set for that recipient (`actor.userId` differs from theirs). Where a platform requires a service identity — Oracle Fusion today — the approving user is stamped in `actor`, so the trail never shows a service account.
 
 ### 4.6 Event fan-out
 
-`GET /negotiate` returns a client access URL for Azure Web PubSub. The dock connects with the `json.reliable.webpubsub.azure.v1` subprotocol and joins the group `user:<userId>`. Five wire events are published, and `contracts/schemas/events.ts` holds the authoritative name map:
+`GET /negotiate` returns `{ url }`, a client access URL for Azure Web PubSub. The dock connects with the `json.reliable.webpubsub.azure.v1` subprotocol, takes its reconnection token from the service's `system` frame (a `reconnectionToken` in the negotiate body is not read), and joins the group `user:<userId>`.
 
-| Wire event | Payload | IPC event the dock re-emits |
+A published frame's `data` is a `WireEvent` from `contracts/schemas/events.ts`: `{ eventId, type, payload }`. `eventId` lives on that envelope. The dock copies it onto the payload before validating the IPC shape, so a publisher that puts `eventId` only inside `payload`, or that publishes the IPC shape as `data`, is dropped as malformed. Five `type` values are published:
+
+| Wire `type` | `payload` | IPC event after the dock splices `eventId` |
 |---|---|---|
-| `attention.created` | `{ eventId, item }` | `attention_new` |
-| `attention.resolved` | `{ eventId, attentionId }` | `attention_resolved` |
-| `attention.expired` | `{ eventId, attentionId }` | `attention_expired` |
-| `journey.updated` | `{ eventId, journeyId, taskId, state, agentId?, cards?, message? }` | `task_state` |
-| `ledger.appended` | `{ eventId, row }` | `ledger_appended` |
+| `attention.created` | `{ item }` | `attention_new` |
+| `attention.resolved` | `{ attentionId }` | `attention_resolved` |
+| `attention.expired` | `{ attentionId }` | `attention_expired` |
+| `journey.updated` | `{ journeyId, taskId, state, agentId?, cards?, message? }` | `task_state` |
+| `ledger.appended` | `{ row }` | `ledger_appended` |
 
 Requirements on the publisher:
 
@@ -528,7 +535,7 @@ Rules for a sequenced journey:
 | Ledger write fails | — | The action is **not** announced as done. Fan-out follows the Ledger, so an unrecorded action is never reported as complete |
 | Web PubSub outage | Unaffected | `connectivity_changed` to `reconnecting` then `offline`; decisions are blocked; Recent still reads over HTTP |
 | Dock offline when a decision is attempted | — | Decision buttons disabled with a status strip. Nothing is queued locally |
-| Attention item passes `expiresAt` | `expired` | Item becomes read-only; the journey reports `canceled` with "The proposal expired before you decided" |
+| Attention item passes `expiresAt` | `expired` | Item becomes read-only. `JourneyThread.status` is `expired`. The live task state on the wire is `canceled` (there is no A2A expiry state), which the dock maps to `cancelled` until the thread is refetched |
 | Same item decided on two devices | One `confirmed` row | Second device gets `409` and shows "Already decided elsewhere" |
 | User token expires mid-task | Unaffected | `session_changed`; a "Sign in again" Attention item. The checkpointed task waits |
 | Orchestrator redeployed mid-journey | Unaffected | Nothing. Checkpoints restore and pending requests are re-emitted |
@@ -549,6 +556,10 @@ The recurring principle: **record, then announce.** Every row above that says "n
 - **Triage evaluation.** How routing accuracy is measured as agents are onboarded, and what the regression bar is before a new agent goes live.
 
 ---
+
+## Changes
+
+**21 September 2026 — ADR-006 review pass.** No schema change. §4.1, §4.3, §4.4, §4.5, §4.6 and the expiry row of §8 were corrected to match `contracts/schemas/` and the dock's client: negotiate returns `{ url }`, wire `data` is a `WireEvent` with `eventId` on the envelope, ledger rows are per recipient, and the query, datetime, spelling and decision-relay rules the server has to honour are written down. `contracts@0.2` still owns `/config`, `pop` and `attention.resolved.decision` (ADR-006 step 8).
 
 ## Changes in v0.1
 
